@@ -1,7 +1,7 @@
 package hdl;
 
 public class Server {
-    public static void main(){
+    public static void main(String args[]){
     System.out.println("ola");
     }
 }
