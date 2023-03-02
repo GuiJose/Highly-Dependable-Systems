@@ -4,13 +4,18 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>Highly-Dependable-Systems</artifactId>
+    <groupId>pt.ulisboa.tecnico.classes.T04</groupId>
+    <artifactId>Classes</artifactId>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
-
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-    </properties>
+    <modules>
+        <module>Contract</module>
+        <module>Utils</module>
+        <module>Student</module>
+        <module>Professor</module>
+        <module>Admin</module>
+        <module>ClassServer</module>
+        <module>NamingServer</module>
+    </modules>
 
 </project>
