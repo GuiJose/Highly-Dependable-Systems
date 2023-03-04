@@ -2,6 +2,8 @@ package hdl;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.List;
 
 public class ServerFrontend {
     private DatagramSocket socket;
@@ -16,9 +18,21 @@ public class ServerFrontend {
         
         while(true){
             socket.receive(packet);
-
             String message = new String(packet.getData(), 0, packet.getLength());
-            System.out.println("Received message: " + message);
+            
+            if( !Server.HasMessage(message)){
+                Server.AddMessage(message);
+                byte[] messageBytes =  message.getBytes();
+
+                for (List<Object> add : Server.getAddresses()){
+                    InetAddress ip = InetAddress.getByName((String)add.get(0));
+                    int port = (int)add.get(1); 
+                    DatagramPacket broadcastPacket = new DatagramPacket(messageBytes, messageBytes.length, ip, port);
+                    socket.send(broadcastPacket);
+                } 
+            }
+
         }
+        
     }
 }

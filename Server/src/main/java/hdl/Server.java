@@ -16,6 +16,7 @@ public class Server extends Thread{
     private static boolean isMain = false;
     private static List<List<Object>> addresses = new ArrayList<>();
     private static ServerFrontend frontend;
+    private static List<String> messageList = new ArrayList<>();
 
     public void run(){
         try {
@@ -68,5 +69,28 @@ public class Server extends Thread{
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
             senderSocket.send(packet);
         }
+    }
+
+    public static void broadcast(String message) throws Exception{
+        for (List<Object> address : addresses) {
+            InetAddress ip = InetAddress.getByName((String)address.get(0));
+            int port = (int)address.get(1);        
+            byte[] buffer = message.getBytes();
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+            senderSocket.send(packet);
+        }
+    }
+
+    public static List<List<Object>> getAddresses(){
+        return addresses;
+    }
+
+    public static Boolean HasMessage(String message){
+        return messageList.contains(message);
+    }
+
+    public static void AddMessage(String message){
+        messageList.add(message);
+        System.out.println("Received message: " + message);
     }
 }
