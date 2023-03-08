@@ -14,7 +14,11 @@ public class ServerIBFT {
         blockchain = b;
     }
 
-    
+
+    public void receivedMessage(String message){
+
+    }
+
 
     public void broadcast(String message) throws Exception{
         for (List<Object> address : Server.getAddresses()) {
