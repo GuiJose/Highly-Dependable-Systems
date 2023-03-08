@@ -47,7 +47,7 @@ public class User extends Thread {
 
     private static void readConfiguration(){
         try {
-            File file = new File("src/main/java/hdl/configuration.txt");
+            File file = new File("../Common/Uconfiguration.txt");
             Scanner reader = new Scanner(file);
             while (reader.hasNextLine()) {
               String line = reader.nextLine();
@@ -62,7 +62,7 @@ public class User extends Thread {
     
     private static void getServersAdd(){
         try {
-            File file = new File("../Server/src/main/java/hdl/configuration.txt");
+            File file = new File("../Common/Sconfiguration.txt");
             Scanner reader = new Scanner(file);
             while (reader.hasNextLine()) {
               String line = reader.nextLine();
