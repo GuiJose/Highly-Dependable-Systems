@@ -1,10 +1,10 @@
 #!/bin/bash
 initialPort=10000
 count=1
-> src/main/java/hdl/configuration.txt
+> ../Common/Sconfiguration.txt
 
 while [ $count -le $1 ]; do
-  echo "$((count-1)) localhost $initialPort" >> src/main/java/hdl/configuration.txt
+  echo "$((count-1)) localhost $initialPort" >> ../Common/Sconfiguration.txt
   initialPort=$((initialPort+1))
   count=$((count+1))
 done

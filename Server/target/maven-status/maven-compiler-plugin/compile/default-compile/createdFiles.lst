@@ -1,4 +1,4 @@
-hdl/Blockchain.class
 hdl/ServerIBFT.class
+hdl/Blockchain.class
 hdl/ServerFrontend.class
 hdl/Server.class

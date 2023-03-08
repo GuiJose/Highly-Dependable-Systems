@@ -19,6 +19,7 @@ public class ServerFrontend {
         while(true){
             socket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
+            System.out.println(message);
         }
     }
 }
