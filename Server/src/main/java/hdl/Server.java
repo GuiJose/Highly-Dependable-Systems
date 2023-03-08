@@ -2,9 +2,6 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,13 +9,15 @@ import java.util.Scanner;
 
 public class Server extends Thread{
     private static int id;
-    private static DatagramSocket senderSocket;
     private static boolean isMain = false;
     private static List<List<Object>> addresses = new ArrayList<>();
-    private static ServerFrontend frontend;
+    private static int numServers;
     private static List<String> messageList = new ArrayList<>();
+    private static Blockchain blockchain = new Blockchain();
+    private static ServerFrontend frontend;
+    private static ServerIBFT ibtf;
 
-    public void run(){
+    public void run(){ 
         try {
             frontend.listening();
         } catch (Exception e) {
@@ -29,19 +28,19 @@ public class Server extends Thread{
         id = Integer.parseInt(args[0]);
         if (id == 0){isMain = true;}
         readConfiguration();
-
-        senderSocket = new DatagramSocket();
-        frontend = new ServerFrontend((int)(addresses.get(id).get(1)));
+        numServers = addresses.size();
+        
+        ibtf = new ServerIBFT(blockchain);
+        frontend = new ServerFrontend((int)(addresses.get(id).get(1)), ibtf);
         Server thread = new Server();
         thread.start();
 
-        Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
+        Scanner sc = new Scanner(System.in);    //System.in is a standard input stream  
         System.out.print("Enter '1' to say hello to all the other servers - ");  
         int a = sc.nextInt();
         if (a == 1){
-            sayHi();
+            //sayHi();
         }  
-
     }
 
     private static void readConfiguration(){
@@ -58,39 +57,8 @@ public class Server extends Thread{
             e.printStackTrace();
           }
     }
-    
-    private static void sayHi() throws Exception{
-        for (List<Object> address : addresses) {
-            InetAddress ip = InetAddress.getByName((String)address.get(0));
-            int port = (int)address.get(1);        
-            String message = "Hello! I'm the server " + String.valueOf(id);
-            byte[] buffer = message.getBytes();
-
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
-            senderSocket.send(packet);
-        }
-    }
-
-    public static void broadcast(String message) throws Exception{
-        for (List<Object> address : addresses) {
-            InetAddress ip = InetAddress.getByName((String)address.get(0));
-            int port = (int)address.get(1);        
-            byte[] buffer = message.getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
-            senderSocket.send(packet);
-        }
-    }
 
     public static List<List<Object>> getAddresses(){
         return addresses;
-    }
-
-    public static Boolean HasMessage(String message){
-        return messageList.contains(message);
-    }
-
-    public static void AddMessage(String message){
-        messageList.add(message);
-        System.out.println("Received message: " + message);
     }
 }
