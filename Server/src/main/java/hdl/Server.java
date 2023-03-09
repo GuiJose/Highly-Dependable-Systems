@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import hdl.RSAKeyGenerator;
 
 public class Server extends Thread{
     private static int id;
@@ -28,6 +29,7 @@ public class Server extends Thread{
         id = Integer.parseInt(args[0]);
         if (id == 0){isMain = true;}
         readConfiguration();
+        RSAKeyGenerator.write(id,"s");
         numServers = addresses.size();
         
         ibtf = new ServerIBFT(blockchain);

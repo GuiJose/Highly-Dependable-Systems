@@ -3,7 +3,7 @@ package hdl;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 
-public class ServerFrontend {
+public class ServerFrontend extends Thread{
     private DatagramSocket socket;
     private ServerIBFT serverIbtf;
 
@@ -38,7 +38,7 @@ public class ServerFrontend {
             socket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
             ServerFrontend thread = new ServerFrontend(socket, serverIbtf);
-            thread.start(message);
+            //thread.start(message);
             }
     }
 }

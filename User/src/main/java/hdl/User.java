@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import hdl.RSAKeyGenerator;
 
 public class User extends Thread {
     private static int id;
@@ -30,6 +31,7 @@ public class User extends Thread {
         if (id == 0){isMain = true;}
         readConfiguration();
         getServersAdd();
+        RSAKeyGenerator.write(id,"u");
 
         senderSocket = new DatagramSocket();
         frontend = new UserFrontend((int)(addresses.get(id).get(1)));

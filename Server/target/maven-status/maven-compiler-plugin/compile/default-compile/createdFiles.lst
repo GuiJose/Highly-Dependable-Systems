@@ -1,7 +1,4 @@
 hdl/ServerIBFT.class
-<<<<<<< HEAD
-=======
 hdl/Blockchain.class
 hdl/ServerFrontend.class
->>>>>>> 49276b2535ffd07d6cc9398103e9125b6789bd80
 hdl/Server.class

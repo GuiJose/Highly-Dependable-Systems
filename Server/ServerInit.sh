@@ -14,5 +14,7 @@ while [ $count -le $1 ]; do
   id=$(printf "%d" $((count-1)))
   gnome-terminal \
   -e "bash -c 'mvn exec:java -Dexec.args="$id"; bash'"
+   >../Common/resources/S"$id"public.key
+   >resources/S"$id"private.key
   count=$((count+1))
 done
