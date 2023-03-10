@@ -9,11 +9,11 @@ public class Blockchain {
         wordsList = new ArrayList<>();
     }
 
-    public void appendString(String word){
+    public synchronized void appendString(String word){
         wordsList.add(word);
     } 
 
-    public List<String> getBlockchain(){
+    public synchronized List<String> getBlockchain(){
         return wordsList;
     } 
 }

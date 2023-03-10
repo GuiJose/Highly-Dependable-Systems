@@ -8,19 +8,20 @@ import java.util.List;
 import java.util.Scanner;
 import hdl.RSAKeyGenerator;
 
+
 public class Server extends Thread{
     private static int id;
     private static boolean isMain = false;
     private static List<List<Object>> addresses = new ArrayList<>();
     private static int numServers;
-    private static List<String> messageList = new ArrayList<>();
     private static Blockchain blockchain = new Blockchain();
-    private static ServerFrontend frontend;
+    private static PerfectLink perfectLink;
     private static ServerIBFT ibtf;
+    
 
     public void run(){ 
         try {
-            frontend.listening();
+            perfectLink.listening();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -33,16 +34,18 @@ public class Server extends Thread{
         numServers = addresses.size();
         
         ibtf = new ServerIBFT(blockchain);
-        frontend = new ServerFrontend((int)(addresses.get(id).get(1)), ibtf);
+        perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
         Server thread = new Server();
         thread.start();
 
-        Scanner sc = new Scanner(System.in);    //System.in is a standard input stream  
-        System.out.print("Enter '1' to say hello to all the other servers - ");  
-        int a = sc.nextInt();
-        if (a == 1){
-            //sayHi();
-        }  
+        Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
+        while (true) {
+            System.out.print("Enter '1' to say hello to all the other servers - ");  
+            int a = sc.nextInt();
+            if (a == 1){
+                sayHi();
+            }  
+        }
     }
 
     private static void readConfiguration(){
@@ -62,5 +65,22 @@ public class Server extends Thread{
 
     public static List<List<Object>> getAddresses(){
         return addresses;
+    }
+
+    public static Boolean getIsMain(){
+        return isMain;
+    }
+
+    public static int getNumServers(){
+        return numServers;
+    }
+
+    public static int getid(){
+        return id;
+    }
+
+    private static void sayHi() throws Exception{
+        String message = Integer.toString(id) + " " + Integer.toString(perfectLink.getMessageID()) + " PREPREPARE";
+        perfectLink.broadcast(message);
     }
 }

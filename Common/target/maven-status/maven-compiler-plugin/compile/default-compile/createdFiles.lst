@@ -1,1 +1,4 @@
+hdl/DigitalSignature.class
+hdl/SymetricKey.class
 hdl/RSAKeyGenerator.class
+hdl/HMAC.class
