@@ -11,11 +11,7 @@ public class Blockchain {
 
     public synchronized void appendString(String word){
         wordsList.add(word);
-    } 
-
-    public synchronized List<String> getBlockchain(){
-        return wordsList;
-    } 
+    }
 
     public synchronized void print(){
         System.out.println("Blockchain:");

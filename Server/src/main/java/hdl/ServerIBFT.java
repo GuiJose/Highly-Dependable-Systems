@@ -13,6 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerIBFT {
     private List<String[]> requests = new ArrayList<>();
+    //
     private List<List<Object>> instances = new ArrayList<>();
     //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado] 0 1 2
     private Blockchain blockchain; 
@@ -42,7 +43,7 @@ public class ServerIBFT {
     // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value
     // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value
     // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
-    // USERID:ADD:string ip:port 
+    // USERID:ADD:string:ip:port 
 
     public void receivedMessage(DatagramPacket packet) throws Exception{
         lock.lock();
@@ -53,7 +54,7 @@ public class ServerIBFT {
         else if (data[2].equals("COMMIT")){receivedCommit(data);}
         else if (data[1].equals("ADD")){
             if (Server.getIsMain()){
-                String[] request = {data[3], data[4], data[1], Integer.toString(currentInstance)};
+                String[] request = {data[3], data[4], data[2], Integer.toString(currentInstance)};
                 requests.add(request);
                 start(data[2]);
             }
@@ -98,7 +99,7 @@ public class ServerIBFT {
         instances.add(Arrays.asList(Integer.parseInt(data[3]), newList, new ArrayList<>(), data[4], LocalTime.now(), 0));
     }
 
-    public void receivedCommit(String[] data){
+    public void receivedCommit(String[] data) throws Exception{
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
@@ -137,13 +138,16 @@ public class ServerIBFT {
         Server.getPerfectLink().broadcast(message);
         currentInstance++;        
     }
-    public void decide(){
+    public void decide() throws Exception{
         while(true){
             boolean nextDecidedOrAborted = false; 
             for (List<Object> instance : instances){
                 if ((int) instance.get(0) == writtenInstance+1){
                     if ((int) instance.get(5) == 1){
                         blockchain.appendString((String) instance.get(3));
+                        if(Server.getIsMain()){
+                            respondToUser((int)instance.get(0));
+                        }
                         writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
@@ -160,9 +164,16 @@ public class ServerIBFT {
         }
     }
 
+    public void respondToUser(int instance) throws Exception{
+        for (String[] request: requests){
+            if (Integer.parseInt(request[3]) == instance){
+                String message = "Your request for string: " + request[2] + " was appended at: " + LocalTime.now(); 
+                Server.getPerfectLink().sendMessage(request[0], Integer.parseInt(request[1]), message);
+            } 
+        }
+    }
 
-
-    public void checkExpiredInstances(){
+    public void checkExpiredInstances() throws Exception{
         LocalTime time = LocalTime.now(); 
 
         for (List<Object> instance : instances){

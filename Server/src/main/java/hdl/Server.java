@@ -2,6 +2,8 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -36,8 +38,6 @@ public class Server extends Thread{
         perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
         Server thread = new Server();
         thread.start();
-        //perfectLink.listening();
-
 
         while(true){
             Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  

@@ -1,9 +1,16 @@
 package hdl;
 
+import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.security.Key;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -17,15 +24,6 @@ public class PerfectLink extends Thread{
     private List<List<Integer>> messagesNotACKED;
     private List<String> messagesHistory;
     private int messageID = 0;
-
-    public void run(){ 
-        try {
-            serverIbtf.receivedMessage(this.packet);
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     public PerfectLink(DatagramPacket packet2, ServerIBFT serverIbtf2){
         serverIbtf = serverIbtf2;
@@ -68,28 +66,32 @@ public class PerfectLink extends Thread{
     // USERID:ADD:string:ip:port 
 
     public void listening() throws Exception{    
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[4096];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         while(true){
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
             System.out.println("ReceivedMessage:" + message);
             String[] data = message.split(":");
-            if (data[1].equals("ACK")){
-                receivedACK(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
-            }
-            else if (data[1].equals("ADD")){
-                //PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
-                //thread.start();
+            if (data[1].equals("ADD")){
                 serverIbtf.receivedMessage(packet);
             }
             else{
-                boolean received = receivedMessage(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
-                sendACK(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
-                if (!received){
-                    //PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
-                    //thread.start();
-                    serverIbtf.receivedMessage(packet);
+                String id = message.split("|")[0].split(":")[0];
+                String keyPath = "../Common/resources/S" + id + "public.key";
+                PublicKey key = (PublicKey) RSAKeyGenerator.read(keyPath, "pub");
+
+                if (DigitalSignature.VerifySignature(message.split("|", 2)[0].getBytes(), Base64.getDecoder().decode(message.split("|", 2)[1].getBytes()), key)){
+                    if (data[1].equals("ACK")){
+                        receivedACK(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
+                    }
+                    else{
+                        boolean received = receivedMessage(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
+                        sendACK(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
+                        if (!received){
+                            serverIbtf.receivedMessage(packet);
+                        }
+                    }
                 }
             }
             packet.setLength(buffer.length); 
@@ -132,17 +134,30 @@ public class PerfectLink extends Thread{
         }
     }
 
+    public void sendMessage(String address, int port, String message) throws Exception{
+        InetAddress ip = InetAddress.getByName(address);     
+        byte[] buffer = message.getBytes();
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+        this.senderSocket.send(packet);
+    }
+
     public void broadcast(String message) throws Exception{
+        message = message + '|';
         for (List<Integer> i : messagesNotACKED){
-            i.add(messageID);
+            i.add(this.messageID);
         }
-        messagesHistory.add(message);
-        messageID++;
+        this.messagesHistory.add(message);
+        this.messageID++;
         for (List<Object> address : Server.getAddresses()) {
             InetAddress ip = InetAddress.getByName((String)address.get(0));
             int port = (int)address.get(1);        
             byte[] buffer = message.getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+            String keyPath = "resources/S" + Server.getid() + "private.key";
+            PrivateKey key = (PrivateKey) RSAKeyGenerator.read(keyPath, "priv");
+            byte[] signedMessage = DigitalSignature.CreateSignature(buffer, key);
+            byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + signedMessage.length);
+            System.arraycopy(signedMessage, 0, combinedMessage, buffer.length, signedMessage.length);
+            DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
             this.senderSocket.send(packet);
         }
     }
