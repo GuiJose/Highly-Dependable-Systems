@@ -12,17 +12,17 @@ import java.util.TimerTask;
 public class ServerIBFT {
     private List<String[]> requests = new ArrayList<>();
     private List<List<Object>> instances = new ArrayList<>();
-    private PerfectLink perfectLink;
+    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado] 0 1 2
     private Blockchain blockchain; 
     private int quorum;
     private int currentInstance = 0;
     private int writtenInstance = -1;
 
-    public ServerIBFT(Blockchain b, int numServers, PerfectLink perfectLink) throws Exception{
+    public ServerIBFT(Blockchain b, int numServers) throws Exception{
         this.blockchain = b;
-        this.quorum = (int) Math.floor(2 * ((numServers-1)/3) + 1);
-        this.perfectLink = perfectLink;
-
+        //this.quorum = (int) Math.floor(2 * ((numServers-1)/3) + 1);
+        this.quorum = 3;
+        System.out.println(quorum);
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
             public void run() {
@@ -36,41 +36,42 @@ public class ServerIBFT {
         timer.schedule(task, 0, 15000);
     }
 
-    // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    // SERVER_ID MESSAGE_ID PREPARE lambda value
-    // SERVER_ID MESSAGE_ID COMMIT lambda value
-    // ADD string
+    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value
+    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value
+    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
+    // USERID:ADD:string ip:port 
 
-    public synchronized void receivedMessage(DatagramPacket packet) throws Exception{
+    public void receivedMessage(DatagramPacket packet) throws Exception{
         String message = new String(packet.getData(), 0, packet.getLength());
-        String[] data = message.split(" ");
-
+        String[] data = message.split(":");
         if (data[2].equals("PREPREPARE")){receivedPrePrepare(data);}
         else if (data[2].equals("PREPARE")){receivedPrepare(data);}
         else if (data[2].equals("COMMIT")){receivedCommit(data);}
-        else if (data[0].equals("ADD")){
+        else if (data[1].equals("ADD")){
             if (Server.getIsMain()){
-                String address = packet.getAddress().getHostAddress();
-                int port = packet.getPort();
-                String[] request = {address, Integer.toString(port), data[1], Integer.toString(currentInstance)};
+                String[] request = {data[3], data[4], data[1], Integer.toString(currentInstance)};
                 requests.add(request);
-                start(data[1]);
+                start(data[2]);
             }
         }
     }
 
     // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    public synchronized void receivedPrePrepare(String[] data) throws Exception{
+    public void receivedPrePrepare(String[] data) throws Exception{
+        System.out.println("recebi prepreare");
         instances.add(Arrays.asList(Integer.parseInt(data[3]), new ArrayList<>(), new ArrayList<>(), data[4], LocalTime.now(), 0));
         sendPrepare(data[4], data[3]);
     }
 
     // SERVER_ID MESSAGE_ID PREPARE lambda value
-    public synchronized void receivedPrepare(String[] data) throws Exception{
+    public void receivedPrepare(String[] data) throws Exception{
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
                     ((List<String>) instance.get(1)).add(data[0]);
+                    for (String i : (List<String>) instance.get(1)){
+                        System.out.println(i);
+                    }
                     if (((List<String>) instance.get(1)).size() >= this.quorum){
                         sendCommit(data[4], data[3]);
                     }
@@ -80,7 +81,7 @@ public class ServerIBFT {
         }
     }
 
-    public synchronized void receivedCommit(String[] data){
+    public void receivedCommit(String[] data){
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
@@ -96,34 +97,40 @@ public class ServerIBFT {
     }
 
     // SERVER_ID MESSAGE_ID PREPARE lambda value
-    public synchronized void sendPrepare(String word, String numInstance) throws Exception{
-        String message = Integer.toString(Server.getid()) + " " + Integer.toString(perfectLink.getMessageId()) + " PREPARE " + numInstance + " " + word;
-        perfectLink.broadcast(message);
+    public void sendPrepare(String word, String numInstance) throws Exception{
+        System.out.println("Enviei Prepare");
+        String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPARE:" + numInstance + ":" + word;
+        Server.getPerfectLink().broadcast(message);
     }
 
     // SERVER_ID MESSAGE_ID COMMIT lambda value
-    public synchronized void sendCommit(String word, String numInstance) throws Exception{
-        String message = Integer.toString(Server.getid()) + " " + Integer.toString(perfectLink.getMessageId()) + " COMMIT " + numInstance + " " + word;
-        perfectLink.broadcast(message);
+    public void sendCommit(String word, String numInstance) throws Exception{
+        System.out.println("Enviei Commit");
+        String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":COMMIT:" + numInstance + ":" + word;
+        Server.getPerfectLink().broadcast(message);
     }
 
     // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    public synchronized void start(String word) throws Exception{
-        String message = Integer.toString(Server.getid()) + " " + Integer.toString(perfectLink.getMessageId()) + " PREPREPARE " + Integer.toString(currentInstance) + " " + word;
-        perfectLink.broadcast(message);
-        currentInstance++;
+    public void start(String word) throws Exception{
+        System.out.println("Fiz start");
+        String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPREPARE:" + Integer.toString(currentInstance) + ":" + word;
+        Server.getPerfectLink().broadcast(message);
+        currentInstance++;        
     }
-    public synchronized void decide(){
+    public void decide(){
         while(true){
             boolean nextDecidedOrAborted = false; 
             for (List<Object> instance : instances){
                 if ((int) instance.get(0) == writtenInstance+1){
                     if ((int) instance.get(5) == 1){
                         blockchain.appendString((String) instance.get(3));
+                        writtenInstance = (int) instance.get(1);
                         nextDecidedOrAborted = true;
+                        break;
                     }
                     if ((int) instance.get(5) == 2){
                         nextDecidedOrAborted = true;
+                        break;
                     }
                 }
             }
@@ -132,6 +139,8 @@ public class ServerIBFT {
             }
         }
     }
+
+
 
     public void checkExpiredInstances(){
         LocalTime time = LocalTime.now(); 

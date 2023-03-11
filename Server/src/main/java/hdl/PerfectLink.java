@@ -20,7 +20,8 @@ public class PerfectLink extends Thread{
 
     public void run(){ 
         try {
-            //serverIbtf.receivedMessage(this.packet);
+            serverIbtf.receivedMessage(this.packet);
+            System.out.println("A thread começou");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -60,11 +61,11 @@ public class PerfectLink extends Thread{
         timer.schedule(task, 0, 2000);
     }
 
-    // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    // SERVER_ID MESSAGE_ID PREPARE lambda value
-    // SERVER_ID MESSAGE_ID COMMIT lambda value
-    // SERVER_ID ACK ID_MESSAGE_ACKED
-    // ADD string
+    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value
+    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value
+    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
+    // SERVER_ID:ACK:ID_MESSAGE_ACKED
+    // USERID:ADD:string:ip:port 
 
     public void listening() throws Exception{    
         byte[] buffer = new byte[1024];
@@ -72,10 +73,14 @@ public class PerfectLink extends Thread{
         while(true){
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
-            System.out.println(message);
-            String[] data = message.split(" ");
+            System.out.println("ReceivedMessage:" + message);
+            String[] data = message.split(":");
             if (data[1].equals("ACK")){
                 receivedACK(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
+            }
+            else if (data[1].equals("ADD")){
+                PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
+                thread.start();
             }
             else{
                 boolean received = receivedMessage(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
@@ -105,7 +110,7 @@ public class PerfectLink extends Thread{
         List<Object> address = Server.getAddresses().get(ServerID);
         InetAddress ip = InetAddress.getByName((String)address.get(0));
         int port = (int)address.get(1);
-        String message = Integer.toString(Server.getid()) + " ACK " + Integer.toString(msgID);
+        String message = Integer.toString(Server.getid()) + ":ACK:" + Integer.toString(msgID);
         byte[] buffer = message.getBytes();
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
         this.senderSocket.send(packet);
@@ -125,7 +130,7 @@ public class PerfectLink extends Thread{
         }
     }
 
-    public synchronized void broadcast(String message) throws Exception{
+    public void broadcast(String message) throws Exception{
         for (List<Integer> i : messagesNotACKED){
             i.add(messageID);
         }

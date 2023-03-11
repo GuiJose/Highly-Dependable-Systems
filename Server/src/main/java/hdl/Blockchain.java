@@ -16,4 +16,12 @@ public class Blockchain {
     public synchronized List<String> getBlockchain(){
         return wordsList;
     } 
+
+    public synchronized void print(){
+        System.out.println("Blockchain:");
+        for (String word : wordsList){
+            System.out.println(word);
+            System.out.println("====>");
+        }
+    }
 }

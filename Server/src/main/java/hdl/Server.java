@@ -33,10 +33,16 @@ public class Server extends Thread{
         RSAKeyGenerator.write(id,"s");
         numServers = addresses.size();
         
-        ibtf = new ServerIBFT(blockchain, numServers, perfectLink);
+        ibtf = new ServerIBFT(blockchain, numServers);
         perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
-        Server thread = new Server();
-        thread.start();
+        
+
+        Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
+        System.out.print("Enter '1' to print the ledger:");  
+        int a = sc.nextInt();
+        if (a == 1){
+            blockchain.print();
+        }  
     }
 
     private static void readConfiguration(){
@@ -64,5 +70,9 @@ public class Server extends Thread{
 
     public static int getid(){
         return id;
+    }
+
+    public static PerfectLink getPerfectLink(){
+        return perfectLink;
     }
 }
