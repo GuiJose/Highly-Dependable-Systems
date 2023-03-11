@@ -33,19 +33,10 @@ public class Server extends Thread{
         RSAKeyGenerator.write(id,"s");
         numServers = addresses.size();
         
-        ibtf = new ServerIBFT(blockchain);
+        ibtf = new ServerIBFT(blockchain, numServers, perfectLink);
         perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
         Server thread = new Server();
         thread.start();
-
-        Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
-        while (true) {
-            System.out.print("Enter '1' to say hello to all the other servers - ");  
-            int a = sc.nextInt();
-            if (a == 1){
-                sayHi();
-            }  
-        }
     }
 
     private static void readConfiguration(){
@@ -71,16 +62,7 @@ public class Server extends Thread{
         return isMain;
     }
 
-    public static int getNumServers(){
-        return numServers;
-    }
-
     public static int getid(){
         return id;
-    }
-
-    private static void sayHi() throws Exception{
-        String message = Integer.toString(id) + " " + Integer.toString(perfectLink.getMessageID()) + " PREPREPARE";
-        perfectLink.broadcast(message);
     }
 }

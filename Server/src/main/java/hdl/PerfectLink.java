@@ -60,9 +60,9 @@ public class PerfectLink extends Thread{
         timer.schedule(task, 0, 2000);
     }
 
-    // SERVER_ID MESSAGE_ID PREPREPARE lambda round value
-    // SERVER_ID MESSAGE_ID PREPARE lambda round value
-    // SERVER_ID MESSAGE_ID COMMIT lambda round value
+    // SERVER_ID MESSAGE_ID PREPREPARE lambda value
+    // SERVER_ID MESSAGE_ID PREPARE lambda value
+    // SERVER_ID MESSAGE_ID COMMIT lambda value
     // SERVER_ID ACK ID_MESSAGE_ACKED
     // ADD string
 
@@ -140,7 +140,7 @@ public class PerfectLink extends Thread{
         }
     }
 
-    public int getMessageID(){
+    public int getMessageId(){
         return this.messageID;
     }
 }
