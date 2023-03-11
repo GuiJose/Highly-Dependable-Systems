@@ -8,6 +8,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class ServerIBFT {
     private List<String[]> requests = new ArrayList<>();
@@ -17,6 +19,7 @@ public class ServerIBFT {
     private int quorum;
     private int currentInstance = 0;
     private int writtenInstance = -1;
+    private final Lock lock = new ReentrantLock();
 
     public ServerIBFT(Blockchain b, int numServers) throws Exception{
         this.blockchain = b;
@@ -42,6 +45,7 @@ public class ServerIBFT {
     // USERID:ADD:string ip:port 
 
     public void receivedMessage(DatagramPacket packet) throws Exception{
+        lock.lock();
         String message = new String(packet.getData(), 0, packet.getLength());
         String[] data = message.split(":");
         if (data[2].equals("PREPREPARE")){receivedPrePrepare(data);}
@@ -54,31 +58,44 @@ public class ServerIBFT {
                 start(data[2]);
             }
         }
+        lock.unlock();
     }
 
     // SERVER_ID MESSAGE_ID PREPREPARE lambda value
     public void receivedPrePrepare(String[] data) throws Exception{
         System.out.println("recebi prepreare");
-        instances.add(Arrays.asList(Integer.parseInt(data[3]), new ArrayList<>(), new ArrayList<>(), data[4], LocalTime.now(), 0));
+        for (List<Object> instance : instances){
+            if (instance.get(0).equals(Integer.parseInt(data[3]))){
+                sendPrepare(data[4], data[3]);
+                return;
+            }
+        }
+        //instances.add(Arrays.asList(Integer.parseInt(data[3]), new ArrayList<>(), new ArrayList<>(), data[4], LocalTime.now(), 0));
         sendPrepare(data[4], data[3]);
     }
 
+    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado] 0 1 2
     // SERVER_ID MESSAGE_ID PREPARE lambda value
     public void receivedPrepare(String[] data) throws Exception{
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
                     ((List<String>) instance.get(1)).add(data[0]);
+                    System.out.println("Lista de prepares recebidos:");
                     for (String i : (List<String>) instance.get(1)){
                         System.out.println(i);
                     }
                     if (((List<String>) instance.get(1)).size() >= this.quorum){
                         sendCommit(data[4], data[3]);
                     }
-                    break;
+                    
                 }
+                return;
             }
         }
+        List<String> newList = new ArrayList<>();
+        newList.add(data[0]);
+        instances.add(Arrays.asList(Integer.parseInt(data[3]), newList, new ArrayList<>(), data[4], LocalTime.now(), 0));
     }
 
     public void receivedCommit(String[] data){
@@ -90,10 +107,13 @@ public class ServerIBFT {
                         instance.set(5, 1);
                         decide();
                     }
-                    break;
                 }
+                return;
             }
         }
+        List<String> newList = new ArrayList<>();
+        newList.add(data[0]);
+        instances.add(Arrays.asList(Integer.parseInt(data[3]), new ArrayList<>(), newList, data[4], LocalTime.now(), 0));
     }
 
     // SERVER_ID MESSAGE_ID PREPARE lambda value
@@ -124,7 +144,7 @@ public class ServerIBFT {
                 if ((int) instance.get(0) == writtenInstance+1){
                     if ((int) instance.get(5) == 1){
                         blockchain.appendString((String) instance.get(3));
-                        writtenInstance = (int) instance.get(1);
+                        writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
                     }

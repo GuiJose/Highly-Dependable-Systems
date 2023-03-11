@@ -21,7 +21,7 @@ public class PerfectLink extends Thread{
     public void run(){ 
         try {
             serverIbtf.receivedMessage(this.packet);
-            System.out.println("A thread começou");
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -79,15 +79,17 @@ public class PerfectLink extends Thread{
                 receivedACK(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
             }
             else if (data[1].equals("ADD")){
-                PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
-                thread.start();
+                //PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
+                //thread.start();
+                serverIbtf.receivedMessage(packet);
             }
             else{
                 boolean received = receivedMessage(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
                 sendACK(Integer.parseInt(data[0]), Integer.parseInt(data[1]));
                 if (!received){
-                    PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
-                    thread.start();
+                    //PerfectLink thread = new PerfectLink(packet, this.serverIbtf);
+                    //thread.start();
+                    serverIbtf.receivedMessage(packet);
                 }
             }
             packet.setLength(buffer.length); 

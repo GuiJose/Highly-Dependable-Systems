@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Scanner;
 import hdl.RSAKeyGenerator;
 
-
 public class Server extends Thread{
     private static int id;
     private static boolean isMain = false;
@@ -17,7 +16,6 @@ public class Server extends Thread{
     private static Blockchain blockchain = new Blockchain();
     private static PerfectLink perfectLink;
     private static ServerIBFT ibtf;
-    
 
     public void run(){ 
         try {
@@ -26,6 +24,7 @@ public class Server extends Thread{
             e.printStackTrace();
         }
     }
+    
     public static void main(String args[]) throws Exception{
         id = Integer.parseInt(args[0]);
         if (id == 0){isMain = true;}
@@ -35,14 +34,19 @@ public class Server extends Thread{
         
         ibtf = new ServerIBFT(blockchain, numServers);
         perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
-        
+        Server thread = new Server();
+        thread.start();
+        //perfectLink.listening();
 
-        Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
-        System.out.print("Enter '1' to print the ledger:");  
-        int a = sc.nextInt();
-        if (a == 1){
-            blockchain.print();
-        }  
+
+        while(true){
+            Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
+            System.out.print("Enter '1' to print the ledger:");  
+            int a = sc.nextInt();
+            if (a == 1){
+                blockchain.print();
+            }  
+        }
     }
 
     private static void readConfiguration(){
