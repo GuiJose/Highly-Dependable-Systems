@@ -44,7 +44,7 @@ public class RSAKeyGenerator {
         }
     }
 
-    public static Key read(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public static PublicKey readPublic(String keyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
         System.out.println("Reading key from file " + keyPath + " ...");
         byte[] encoded;
         try (FileInputStream fis = new FileInputStream(keyPath)) {
@@ -52,28 +52,37 @@ public class RSAKeyGenerator {
             fis.read(encoded);
         }
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        if (type.equals("pub") ){
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-            return keyFactory.generatePublic(keySpec);
+        
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
+        return keyFactory.generatePublic(keySpec);
+    }
+
+    public static PrivateKey readPrivate(String keyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+        System.out.println("Reading key from file " + keyPath + " ...");
+        byte[] encoded;
+        try (FileInputStream fis = new FileInputStream(keyPath)) {
+            encoded = new byte[fis.available()];
+            fis.read(encoded);
         }
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
         return keyFactory.generatePrivate(keySpec);
     }
 
 
-    public static byte[] encrypt(String message, PrivateKey key) throws Exception {
+    public static byte[] encrypt(byte[] message, Key key) throws Exception {
         Cipher cipher= Cipher.getInstance("RSA"); 
         cipher.init(Cipher.ENCRYPT_MODE,key);
-        return cipher.doFinal(message.getBytes());
+        return cipher.doFinal(message);
     }
 
 
-    public static String decrypt(byte[] cipherText, PrivateKey key) throws Exception{
+    public static byte[] decrypt(byte[] cipherText, Key key) throws Exception{
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.DECRYPT_MODE,key);
         byte[] result = cipher.doFinal(cipherText);
-        return new String(result);
+        return result;
     } 
 
 }

@@ -34,6 +34,11 @@ public class SymetricKey {
         byte[] result = cipher.doFinal(cipherText);
         return new String(result);
     } 
-
+    public static byte[] createIV(){
+        SecureRandom random = new SecureRandom();
+        byte[] iv = new byte[16]; 
+        random.nextBytes(iv);
+        return iv;
+    }
 
 }

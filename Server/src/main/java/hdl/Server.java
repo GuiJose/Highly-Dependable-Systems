@@ -2,12 +2,11 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import javax.crypto.SecretKey;
 import hdl.RSAKeyGenerator;
 
 public class Server extends Thread{
@@ -18,7 +17,8 @@ public class Server extends Thread{
     private static Blockchain blockchain = new Blockchain();
     private static PerfectLink perfectLink;
     private static ServerIBFT ibtf;
-
+    private static List<List<Object>> keys = new ArrayList<>();  
+    // Object = [id, key, iv, address, port]
     public void run(){ 
         try {
             perfectLink.listening();
@@ -78,5 +78,16 @@ public class Server extends Thread{
 
     public static PerfectLink getPerfectLink(){
         return perfectLink;
+    }
+
+    public static void generateUserKey(String id, String address, String port) throws Exception{
+        SecretKey key = SymetricKey.createKey();
+        System.out.println("Chave:" + new String(key.getEncoded())); 
+        byte[] iv = SymetricKey.createIV();
+        System.out.println("IV:" + new String(iv));
+        List<Object> newList = new ArrayList<>();
+        newList.addAll(Arrays.asList(id, key, iv, address, port));
+        keys.add(newList);
+        perfectLink.sendBootMessage(id, address, port, key, iv);
     }
 }

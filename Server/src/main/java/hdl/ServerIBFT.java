@@ -45,7 +45,7 @@ public class ServerIBFT {
     // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
     // USERID:ADD:string:ip:port 
 
-    public void receivedMessage(DatagramPacket packet) throws Exception{
+    public synchronized void receivedMessage(DatagramPacket packet) throws Exception{
         lock.lock();
         String message = new String(packet.getData(), 0, packet.getLength());
         String[] data = message.split(":");
@@ -63,7 +63,7 @@ public class ServerIBFT {
     }
 
     // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    public void receivedPrePrepare(String[] data) throws Exception{
+    public synchronized void receivedPrePrepare(String[] data) throws Exception{
         System.out.println("recebi prepreare");
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
@@ -77,7 +77,7 @@ public class ServerIBFT {
 
     //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado] 0 1 2
     // SERVER_ID MESSAGE_ID PREPARE lambda value
-    public void receivedPrepare(String[] data) throws Exception{
+    public synchronized void receivedPrepare(String[] data) throws Exception{
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
@@ -99,7 +99,7 @@ public class ServerIBFT {
         instances.add(Arrays.asList(Integer.parseInt(data[3]), newList, new ArrayList<>(), data[4], LocalTime.now(), 0));
     }
 
-    public void receivedCommit(String[] data) throws Exception{
+    public synchronized void receivedCommit(String[] data) throws Exception{
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
@@ -118,27 +118,27 @@ public class ServerIBFT {
     }
 
     // SERVER_ID MESSAGE_ID PREPARE lambda value
-    public void sendPrepare(String word, String numInstance) throws Exception{
+    public synchronized void sendPrepare(String word, String numInstance) throws Exception{
         System.out.println("Enviei Prepare");
         String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPARE:" + numInstance + ":" + word;
         Server.getPerfectLink().broadcast(message);
     }
 
     // SERVER_ID MESSAGE_ID COMMIT lambda value
-    public void sendCommit(String word, String numInstance) throws Exception{
+    public synchronized void sendCommit(String word, String numInstance) throws Exception{
         System.out.println("Enviei Commit");
         String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":COMMIT:" + numInstance + ":" + word;
         Server.getPerfectLink().broadcast(message);
     }
 
     // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    public void start(String word) throws Exception{
+    public synchronized void start(String word) throws Exception{
         System.out.println("Fiz start");
         String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPREPARE:" + Integer.toString(currentInstance) + ":" + word;
         Server.getPerfectLink().broadcast(message);
         currentInstance++;        
     }
-    public void decide() throws Exception{
+    public synchronized void decide() throws Exception{
         while(true){
             boolean nextDecidedOrAborted = false; 
             for (List<Object> instance : instances){
@@ -164,7 +164,7 @@ public class ServerIBFT {
         }
     }
 
-    public void respondToUser(int instance) throws Exception{
+    public synchronized void respondToUser(int instance) throws Exception{
         for (String[] request: requests){
             if (Integer.parseInt(request[3]) == instance){
                 String message = "Your request for string: " + request[2] + " was appended at: " + LocalTime.now(); 
@@ -173,7 +173,7 @@ public class ServerIBFT {
         }
     }
 
-    public void checkExpiredInstances() throws Exception{
+    public synchronized void checkExpiredInstances() throws Exception{
         LocalTime time = LocalTime.now(); 
 
         for (List<Object> instance : instances){

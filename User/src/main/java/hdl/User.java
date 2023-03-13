@@ -35,9 +35,11 @@ public class User extends Thread {
         User thread = new User();
         thread.start();
 
+        frontend.sendBoot(Integer.toString(id) + ":BOOT:localhost:" + Integer.toString(port));
+
         while (true){
           Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
-          System.out.print("Write the word to be appended(':' not allowed):");  
+          System.out.println("Write the word to be appended(':' not allowed):");  
           String word = sc.nextLine();
           frontend.sendRequest(word);
         }
