@@ -76,15 +76,17 @@ public class Server extends Thread{
         return id;
     }
 
+    public static List<List<Object>> getKeys(){
+        return keys;
+    }
+
     public static PerfectLink getPerfectLink(){
         return perfectLink;
     }
 
     public static void generateUserKey(String id, String address, String port) throws Exception{
         SecretKey key = SymetricKey.createKey();
-        System.out.println("Chave:" + new String(key.getEncoded())); 
         byte[] iv = SymetricKey.createIV();
-        System.out.println("IV:" + new String(iv));
         List<Object> newList = new ArrayList<>();
         newList.addAll(Arrays.asList(id, key, iv, address, port));
         keys.add(newList);

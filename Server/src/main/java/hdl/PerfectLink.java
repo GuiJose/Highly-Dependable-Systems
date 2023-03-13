@@ -55,7 +55,7 @@ public class PerfectLink extends Thread{
     // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value
     // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
     // SERVER_ID:ACK:ID_MESSAGE_ACKED
-    // USERID:ADD:string:ip:port 
+    // USERID:ADD:string:ip:port:MAC
     // USERID:BOOT:ip:port
 
     public synchronized void listening() throws Exception{    
@@ -68,7 +68,24 @@ public class PerfectLink extends Thread{
 
             if (data[1].equals("ADD")){
                 if (Server.getIsMain()){
-                    serverIbtf.receivedMessage(packet);
+                    for(List<Object> key : Server.getKeys()){
+                        if (((String)key.get(0)).equals(data[0])){
+                            SecretKey userKey = (SecretKey)key.get(1);
+                            byte[] iv = (byte[])key.get(2);
+
+                            byte[] encryptedMac = new byte[48];
+                            System.arraycopy(packet.getData(), packet.getLength()-48, encryptedMac, 0, 48); 
+                            byte[] decryptedMac = SymetricKey.decrypt(encryptedMac, userKey, iv);
+
+                            String message2 = data[0] + ":" + data[1] + ":" + data[2] + ":" + data[3] + ":" + data[4] + ":";
+                            
+                            byte[] macToVerify = HMAC.createHMAC(message2);
+                            if (Arrays.equals(macToVerify, decryptedMac)){
+                                serverIbtf.receivedMessage(packet);
+                            }
+                            break;
+                        }
+                    }
                 }
             }
             else if(data[1].equals("BOOT")){
@@ -145,10 +162,21 @@ public class PerfectLink extends Thread{
     }
 
     public synchronized void sendMessage(String address, int port, String message) throws Exception{
-        InetAddress ip = InetAddress.getByName(address);     
+        byte[] mac = HMAC.createHMAC(message);
         byte[] buffer = message.getBytes();
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
-        this.senderSocket.send(packet);
+        for (List<Object> x: Server.getKeys()){
+            if (port == Integer.parseInt((String)x.get(4))){
+                SecretKey key = (SecretKey) x.get(1);
+                byte[] iv = (byte[]) x.get(2); 
+                byte[] encryptMac = SymetricKey.encrypt(mac, key, iv);
+                byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + encryptMac.length);
+                System.arraycopy(encryptMac, 0, combinedMessage, buffer.length, encryptMac.length);
+                InetAddress ip = InetAddress.getByName(address);     
+                DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
+                this.senderSocket.send(packet);
+                break;
+            }
+        }
     }
 
     //BOOT:key:iv
@@ -160,7 +188,6 @@ public class PerfectLink extends Thread{
         
         byte[] combinedMessage = Arrays.copyOf(keyBytes, keyBytes.length + iv.length);
         System.arraycopy(iv, 0, combinedMessage, keyBytes.length, iv.length);
-        System.out.println("Tamanho da key+iv: " + combinedMessage.length);
 
         byte[] encryptedMessage = RSAKeyGenerator.encrypt(combinedMessage, publicKey);
 

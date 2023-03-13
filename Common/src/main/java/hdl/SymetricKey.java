@@ -11,7 +11,6 @@ public class SymetricKey {
     
 
     public static SecretKey createKey() throws Exception {
-
         SecureRandom securerandom = new SecureRandom();
         KeyGenerator keygenerator = KeyGenerator.getInstance("AES");
         keygenerator.init(256, securerandom);
@@ -19,20 +18,19 @@ public class SymetricKey {
         return key;
     }
 
-    public static byte[] encrypt(String message, SecretKey key, byte[] iv) throws Exception {
-        Cipher cipher= Cipher.getInstance("AES_CIPHER_ALGORITHM"); 
+    public static byte[] encrypt(byte[] message, SecretKey key, byte[] iv) throws Exception {
+        Cipher cipher= Cipher.getInstance("AES/CBC/PKCS5PADDING"); 
         IvParameterSpec ivP = new IvParameterSpec(iv);
         cipher.init(Cipher.ENCRYPT_MODE,key,ivP);
-        return cipher.doFinal(message.getBytes());
+        return cipher.doFinal(message);
     }
 
-
-    public static String decrypt(byte[] cipherText, SecretKey key, byte[] iv) throws Exception{
-        Cipher cipher = Cipher.getInstance("AES_CIPHER_ALGORITHM");
+    public static byte[] decrypt(byte[] cipherText, SecretKey key, byte[] iv) throws Exception{
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
         IvParameterSpec ivP = new IvParameterSpec(iv);
         cipher.init(Cipher.DECRYPT_MODE,key,ivP);
         byte[] result = cipher.doFinal(cipherText);
-        return new String(result);
+        return result;
     } 
     public static byte[] createIV(){
         SecureRandom random = new SecureRandom();

@@ -31,9 +31,7 @@ public class UserFrontend {
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
             String[] data = message.split(":", 2);
-
             if (data[0].equals("BOOT")){
-                System.out.println("RECEBI A CHAVE");
                 String keyPath = "resources/U" + User.getid() + "private.key";
                 PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
 
@@ -48,21 +46,39 @@ public class UserFrontend {
                 this.iv = iv;
                 this.key = new SecretKeySpec(decryptedKey, "AES");
             }
+            if (message.split(" ")[0].equals("Your")){
+                byte[] encryptedMac = new byte[48];
+                byte[] msg = new byte[packet.getLength()-48];
+                System.arraycopy(packet.getData(), packet.getLength()-48, encryptedMac, 0, 48); 
+                System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-48);
+                byte[] decryptedMac = SymetricKey.decrypt(encryptedMac, this.key, this.iv);
+
+                byte[] macToVerify = HMAC.createHMAC(new String(msg));
+                if (Arrays.equals(macToVerify, decryptedMac)){
+                    System.out.println(new String(msg));
+                }
+            }
             packet.setLength(buffer.length); 
         }
     }
 
-    // USERID:ADD:string:ip:port 
+    // USERID:ADD:string:ip:port:MAC 
     public void sendRequest(String message) throws Exception{
-        String newMessage = Integer.toString(User.getid()) + ":ADD:" + message + ":localhost:" + Integer.toString(port); 
+        String newMessage = Integer.toString(User.getid()) + ":ADD:" + message + ":localhost:" + Integer.toString(port) + ":"; 
+        byte[] mac = HMAC.createHMAC(newMessage);
+        byte[] buffer = newMessage.getBytes();
+        byte[] encryptMac = SymetricKey.encrypt(mac, this.key, this.iv);
+        byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + encryptMac.length);
+        System.arraycopy(encryptMac, 0, combinedMessage, buffer.length, encryptMac.length);
+
         for(List<Object> server : User.getServers()){
             InetAddress ip = InetAddress.getByName((String) server.get(0)); 
             int port = (int) server.get(1);        
-            byte[] buffer = newMessage.getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+            DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
             this.senderSocket.send(packet);
         }
     }
+
     public void sendBoot(String message) throws Exception{
         for(List<Object> server : User.getServers()){
             InetAddress ip = InetAddress.getByName((String) server.get(0)); 

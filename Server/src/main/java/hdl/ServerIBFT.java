@@ -26,7 +26,6 @@ public class ServerIBFT {
         this.blockchain = b;
         //this.quorum = (int) Math.floor(2 * ((numServers-1)/3) + 1);
         this.quorum = 3;
-        System.out.println(quorum);
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
             public void run() {
@@ -53,6 +52,7 @@ public class ServerIBFT {
         else if (data[2].equals("PREPARE")){receivedPrepare(data);}
         else if (data[2].equals("COMMIT")){receivedCommit(data);}
         else if (data[1].equals("ADD")){
+            System.out.println("recebi pedido de add");
             String[] request = {data[3], data[4], data[2], Integer.toString(currentInstance)};
             requests.add(request);
             start(data[2]);
@@ -80,10 +80,6 @@ public class ServerIBFT {
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 if ((int) instance.get(5) == 0){
                     ((List<String>) instance.get(1)).add(data[0]);
-                    System.out.println("Lista de prepares recebidos:");
-                    for (String i : (List<String>) instance.get(1)){
-                        System.out.println(i);
-                    }
                     if (((List<String>) instance.get(1)).size() >= this.quorum){
                         sendCommit(data[4], data[3]);
                     }
@@ -163,6 +159,7 @@ public class ServerIBFT {
     }
 
     public synchronized void respondToUser(int instance) throws Exception{
+        System.out.println("Enviei resposta ao cliente.");
         for (String[] request: requests){
             if (Integer.parseInt(request[3]) == instance){
                 String message = "Your request for string: " + request[2] + " was appended at: " + LocalTime.now(); 
