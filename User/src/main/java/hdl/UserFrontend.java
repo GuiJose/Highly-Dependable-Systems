@@ -5,6 +5,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.security.PrivateKey;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,9 +47,6 @@ public class UserFrontend {
 
                 this.iv = iv;
                 this.key = new SecretKeySpec(decryptedKey, "AES");
-
-                System.out.println("Chave:" + new String(this.key.getEncoded()));
-                System.out.println("IV:" + new String(this.iv));
             }
             packet.setLength(buffer.length); 
         }
@@ -57,17 +55,21 @@ public class UserFrontend {
     // USERID:ADD:string:ip:port 
     public void sendRequest(String message) throws Exception{
         String newMessage = Integer.toString(User.getid()) + ":ADD:" + message + ":localhost:" + Integer.toString(port); 
-        InetAddress ip = InetAddress.getByName((String)User.getServers().get(0).get(0)); 
-        int port = (int) User.getServers().get(0).get(1);        
-        byte[] buffer = newMessage.getBytes();
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
-        this.senderSocket.send(packet);
+        for(List<Object> server : User.getServers()){
+            InetAddress ip = InetAddress.getByName((String) server.get(0)); 
+            int port = (int) server.get(1);        
+            byte[] buffer = newMessage.getBytes();
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+            this.senderSocket.send(packet);
+        }
     }
     public void sendBoot(String message) throws Exception{
-        InetAddress ip = InetAddress.getByName((String)User.getServers().get(0).get(0)); 
-        int port = (int) User.getServers().get(0).get(1);        
-        byte[] buffer = message.getBytes();
+        for(List<Object> server : User.getServers()){
+            InetAddress ip = InetAddress.getByName((String) server.get(0)); 
+            int port = (int) server.get(1);        
+            byte[] buffer = message.getBytes();
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
         this.senderSocket.send(packet);
+        }
     }
 }

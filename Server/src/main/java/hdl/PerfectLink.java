@@ -67,10 +67,14 @@ public class PerfectLink extends Thread{
             String[] data = message.split(":");
 
             if (data[1].equals("ADD")){
-                serverIbtf.receivedMessage(packet);
+                if (Server.getIsMain()){
+                    serverIbtf.receivedMessage(packet);
+                }
             }
             else if(data[1].equals("BOOT")){
-                Server.generateUserKey(data[0], data[2], data[3]);
+                if (Server.getIsMain()){
+                    Server.generateUserKey(data[0], data[2], data[3]);
+                }
             }
             else{
                 String id = message.split(":")[0].split(":")[0];

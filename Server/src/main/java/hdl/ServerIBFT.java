@@ -53,11 +53,9 @@ public class ServerIBFT {
         else if (data[2].equals("PREPARE")){receivedPrepare(data);}
         else if (data[2].equals("COMMIT")){receivedCommit(data);}
         else if (data[1].equals("ADD")){
-            if (Server.getIsMain()){
-                String[] request = {data[3], data[4], data[2], Integer.toString(currentInstance)};
-                requests.add(request);
-                start(data[2]);
-            }
+            String[] request = {data[3], data[4], data[2], Integer.toString(currentInstance)};
+            requests.add(request);
+            start(data[2]);
         }
         lock.unlock();
     }
