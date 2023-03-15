@@ -17,8 +17,10 @@ public class Server extends Thread{
     private static Blockchain blockchain = new Blockchain();
     private static PerfectLink perfectLink;
     private static ServerIBFT ibtf;
-    private static List<List<Object>> keys = new ArrayList<>();  
+    private static List<List<Object>> keys = new ArrayList<>(); 
     // Object = [id, key, iv, address, port]
+    private static int currentLeader = 0; 
+    private static boolean isBizantine = false;
     public void run(){ 
         try {
             perfectLink.listening();
@@ -33,14 +35,17 @@ public class Server extends Thread{
         readConfiguration();
         RSAKeyGenerator.write(id,"s");
         numServers = addresses.size();
-        
+
+        if (args[1].equals("1")){
+            isBizantine = true;
+        }        
         ibtf = new ServerIBFT(blockchain, numServers);
         perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
         Server thread = new Server();
         thread.start();
 
         while(true){
-            Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
+            Scanner sc= new Scanner(System.in); 
             System.out.print("Enter '1' to print the ledger:");  
             int a = sc.nextInt();
             if (a == 1){
@@ -71,6 +76,9 @@ public class Server extends Thread{
     public static Boolean getIsMain(){
         return isMain;
     }
+    public static Boolean getIsBizantine(){
+        return isBizantine;
+    }
 
     public static int getid(){
         return id;
@@ -82,6 +90,10 @@ public class Server extends Thread{
 
     public static PerfectLink getPerfectLink(){
         return perfectLink;
+    }
+
+    public static int getCurrentLeader(){
+        return currentLeader;
     }
 
     public static void generateUserKey(String id, String address, String port) throws Exception{

@@ -51,12 +51,12 @@ public class PerfectLink extends Thread{
         timer.schedule(task, 0, 2000);
     }
 
-    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value
-    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value
-    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
-    // SERVER_ID:ACK:ID_MESSAGE_ACKED
-    // USERID:ADD:string:ip:port:MAC
-    // USERID:BOOT:ip:port
+    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value:signature
+    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value:signature
+    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value:signature
+    // SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
+    // USERID:MESSAGE_ID:ADD:string:ip:port:MAC
+    // USERID:MESSAGE_ID:BOOT:ip:port
 
     public synchronized void listening() throws Exception{    
         byte[] buffer = new byte[4096];
@@ -65,8 +65,7 @@ public class PerfectLink extends Thread{
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
             String[] data = message.split(":");
-
-            if (data[1].equals("ADD")){
+            if (data[2].equals("ADD")){
                 if (Server.getIsMain()){
                     for(List<Object> key : Server.getKeys()){
                         if (((String)key.get(0)).equals(data[0])){
@@ -77,10 +76,11 @@ public class PerfectLink extends Thread{
                             System.arraycopy(packet.getData(), packet.getLength()-48, encryptedMac, 0, 48); 
                             byte[] decryptedMac = SymetricKey.decrypt(encryptedMac, userKey, iv);
 
-                            String message2 = data[0] + ":" + data[1] + ":" + data[2] + ":" + data[3] + ":" + data[4] + ":";
+                            String message2 = data[0] + ":" + data[1] + ":" + data[2] + ":" + data[3] + ":" + data[4] + ":" + data[5] + ":";
                             
                             byte[] macToVerify = HMAC.createHMAC(message2);
                             if (Arrays.equals(macToVerify, decryptedMac)){
+                                System.out.println("ola");
                                 serverIbtf.receivedMessage(packet);
                             }
                             break;
@@ -88,9 +88,9 @@ public class PerfectLink extends Thread{
                     }
                 }
             }
-            else if(data[1].equals("BOOT")){
+            else if(data[2].equals("BOOT")){
                 if (Server.getIsMain()){
-                    Server.generateUserKey(data[0], data[2], data[3]);
+                    Server.generateUserKey(data[0], data[3], data[4]);
                 }
             }
             else{

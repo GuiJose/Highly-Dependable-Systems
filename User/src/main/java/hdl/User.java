@@ -35,7 +35,7 @@ public class User extends Thread {
         User thread = new User();
         thread.start();
 
-        frontend.sendBoot(Integer.toString(id) + ":BOOT:localhost:" + Integer.toString(port));
+        frontend.sendBoot(Integer.toString(id) + ":0:BOOT:localhost:" + Integer.toString(port));
 
         while (true){
           Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  

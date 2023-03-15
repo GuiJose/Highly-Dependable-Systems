@@ -8,8 +8,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 public class SymetricKey {
-    
-
     public static SecretKey createKey() throws Exception {
         SecureRandom securerandom = new SecureRandom();
         KeyGenerator keygenerator = KeyGenerator.getInstance("AES");
