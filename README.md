@@ -30,6 +30,8 @@ $ ./ServerInit.bash <NServers> <NByzantineServers>
 ./ServerInit.bash 7 2
 ```
 
+When the servers are running you can press "1" and then "ENTER" to see the contents of the blockchain.
+
 ## To Run Users
 
 
@@ -43,3 +45,5 @@ $ ./UserInit.bash <NUsers>
 ```
 ./UserInit.bash 1
 ```
+
+When the user is running you can type the string you want to append and then press "ENTER" to send the request.

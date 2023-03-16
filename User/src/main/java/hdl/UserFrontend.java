@@ -30,7 +30,7 @@ public class UserFrontend {
         this.receiverSocket = new DatagramSocket(port);
         this.port = port; 
 
-        Timer timer = new Timer();
+        /*Timer timer = new Timer();
         TimerTask task = new TimerTask() {
             public void run() {
                 try {
@@ -40,7 +40,7 @@ public class UserFrontend {
                 }
             }
         };
-        timer.schedule(task, 0, 2000);
+        timer.schedule(task, 0, 2000);*/
     }
 
     //BOOT:key+iv

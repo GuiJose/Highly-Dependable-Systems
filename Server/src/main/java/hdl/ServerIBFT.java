@@ -15,7 +15,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ServerIBFT {
     private List<String[]> requests = new ArrayList<>();
     private List<List<Object>> instances = new ArrayList<>();
-    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado] 0 1 2
+    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado]
     private Blockchain blockchain; 
     private int quorum;
     private int currentInstance = 0;
@@ -171,6 +171,7 @@ public class ServerIBFT {
         Server.getPerfectLink().broadcast(message);
         currentInstance++;        
     }
+    
     public synchronized void decide() throws Exception{
         while(true){
             boolean nextDecidedOrAborted = false; 
@@ -179,13 +180,17 @@ public class ServerIBFT {
                     if ((int) instance.get(5) == 1){
                         blockchain.appendString((String) instance.get(3));
                         if(Server.getIsMain()){
-                            respondToUser((int)instance.get(0));
+                            respondToUser((int)instance.get(0), 0);
                         }
                         writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
                     }
                     if ((int) instance.get(5) == 2){
+                        if(Server.getIsMain()){
+                            respondToUser((int)instance.get(0), 1);
+                        }
+                        writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
                     }
@@ -197,12 +202,18 @@ public class ServerIBFT {
         }
     }
 
-    public synchronized void respondToUser(int instance) throws Exception{
+    public synchronized void respondToUser(int instance, int mode) throws Exception{
         System.out.println("Enviei resposta ao cliente.");
         for (String[] request: requests){
             if (Integer.parseInt(request[3]) == instance){
-                String message = "Your request for string: " + request[2] + " was appended at: " + LocalTime.now(); 
-                Server.getPerfectLink().sendMessage(request[0], Integer.parseInt(request[1]), message);
+                if (mode == 0){
+                    String message = "Your request for string: " + request[2] + " was appended at: " + LocalTime.now(); 
+                    Server.getPerfectLink().sendMessage(request[0], Integer.parseInt(request[1]), message);
+                }
+                else{
+                    String message = "It was not possible to attend to your request for string: " + request[2]; 
+                    Server.getPerfectLink().sendMessage(request[0], Integer.parseInt(request[1]), message);
+                }
             } 
         }
     }

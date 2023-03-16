@@ -20,7 +20,8 @@ public class PerfectLink extends Thread{
     private List<List<Integer>> receivedMessages;
     private List<List<Integer>> messagesNotACKED;
     private List<String> messagesHistory;
-    private int messageID = 0;
+    private int messageToServersID = 0;
+    private int messageToUsersID = 0;
 
     public PerfectLink(int port, ServerIBFT ibtf, int numServers) throws Exception{
         this.receiverSocket = new DatagramSocket(port);
@@ -203,10 +204,10 @@ public class PerfectLink extends Thread{
     public synchronized void broadcast(String message) throws Exception{
         message = message + ':';
         for (List<Integer> i : messagesNotACKED){
-            i.add(this.messageID);
+            i.add(this.messageToServersID);
         }
         this.messagesHistory.add(message);
-        this.messageID++;
+        this.messageToServersID++;
         for (List<Object> address : Server.getAddresses()) {
             InetAddress ip = InetAddress.getByName((String)address.get(0));
             int port = (int)address.get(1);        
@@ -222,6 +223,6 @@ public class PerfectLink extends Thread{
     }
 
     public int getMessageId(){
-        return this.messageID;
+        return this.messageToServersID;
     }
 }
