@@ -21,7 +21,7 @@ public class PerfectLink extends Thread{
     private List<List<Integer>> messagesNotACKED;
     private List<String> messagesHistory;
     private int messageToServersID = 0;
-    private int messageToUsersID = 0;
+    //private int messageToUsersID = 0;
 
     public PerfectLink(int port, ServerIBFT ibtf, int numServers) throws Exception{
         this.receiverSocket = new DatagramSocket(port);

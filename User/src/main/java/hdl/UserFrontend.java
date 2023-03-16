@@ -20,9 +20,9 @@ public class UserFrontend {
     private SecretKey key;
     private byte[] iv;
     private int messageID = 0;
-    private List<Integer> receivedACKs = new ArrayList<>();
+    /*private List<Integer> receivedACKs = new ArrayList<>();
     private List<byte[]> messagesHistory = new ArrayList<>();
-    private List<Object> receivedMessagesFromServer = new ArrayList<>();
+    private List<Object> receivedMessagesFromServer = new ArrayList<>();*/
     //[Server_id, Message_id]
  
     public UserFrontend(int port) throws Exception{
@@ -91,7 +91,7 @@ public class UserFrontend {
         byte[] encryptMac = SymetricKey.encrypt(mac, this.key, this.iv);
         byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + encryptMac.length);
         System.arraycopy(encryptMac, 0, combinedMessage, buffer.length, encryptMac.length);
-        this.messagesHistory.add(combinedMessage);
+        //this.messagesHistory.add(combinedMessage);
         InetAddress ip = InetAddress.getByName((String) User.getServers().get(0).get(0)); 
         int port = (int) User.getServers().get(0).get(1);        
         DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
@@ -104,12 +104,12 @@ public class UserFrontend {
         InetAddress ip = InetAddress.getByName((String) User.getServers().get(0).get(0)); 
         int port = (int) User.getServers().get(0).get(1);        
         byte[] buffer = message.getBytes();
-        this.messagesHistory.add(buffer);
+        //this.messagesHistory.add(buffer);
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
         this.senderSocket.send(packet);
     }
 
-    public void sendMessagesAgain() throws Exception{
+    /*public void sendMessagesAgain() throws Exception{
         for (int i = 0; i < messagesHistory.size(); i++){
             if(!receivedACKs.contains(i)){
                 InetAddress ip = InetAddress.getByName((String) User.getServers().get(0).get(0)); 
@@ -118,5 +118,5 @@ public class UserFrontend {
                 this.senderSocket.send(packet);
             }
         }
-    }
+    }*/
 }
