@@ -21,7 +21,6 @@ public class PerfectLink extends Thread{
     private List<List<Integer>> messagesNotACKED;
     private List<String> messagesHistory;
     private int messageToServersID = 0;
-    //private int messageToUsersID = 0;
 
     public PerfectLink(int port, ServerIBFT ibtf, int numServers) throws Exception{
         this.receiverSocket = new DatagramSocket(port);
@@ -66,6 +65,7 @@ public class PerfectLink extends Thread{
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
             String[] data = message.split(":");
+            System.out.println(message);
             if (data[2].equals("ADD")){
                 if (Server.getIsMain()){
                     for(List<Object> key : Server.getKeys()){
@@ -156,13 +156,18 @@ public class PerfectLink extends Thread{
                 int port = (int)address.get(1);
                 String message = messagesHistory.get(j);
                 byte[] buffer = message.getBytes();
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+                String keyPath = "resources/S" + Server.getid() + "private.key";
+                PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
+                byte[] signedMessage = DigitalSignature.CreateSignature(buffer, key);
+                byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + signedMessage.length);
+                System.arraycopy(signedMessage, 0, combinedMessage, buffer.length, signedMessage.length);
+                DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
                 this.senderSocket.send(packet);
             }
         }
     }
 
-    public synchronized void sendMessage(String address, int port, String message) throws Exception{
+    public void sendMessage(String address, int port, String message) throws Exception{
         byte[] mac = HMAC.createHMAC(message);
         byte[] buffer = message.getBytes();
         for (List<Object> x: Server.getKeys()){

@@ -27,7 +27,6 @@ public class ServerIBFT {
         this.blockchain = b;
         int byzantineServersSuported = (int) Math.floor((numServers-1)/3);
         this.quorum = 2 * byzantineServersSuported + 1; 
-        System.out.println(this.quorum);
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -68,7 +67,7 @@ public class ServerIBFT {
         if (Integer.parseInt(data[0]) != Server.getCurrentLeader()){
             return;
         }
-        System.out.println("recebi prepreare");
+        System.out.println("recebi preprepare");
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 sendPrepare(data[4], data[3]);
