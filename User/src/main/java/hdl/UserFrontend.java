@@ -3,8 +3,10 @@ package hdl;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
 import javax.crypto.SecretKey;
@@ -93,7 +95,6 @@ public class UserFrontend {
         byte[] signature = DigitalSignature.CreateSignature(combinedMessage, privKey);
         byte[] signedMessage = Arrays.copyOf(combinedMessage, combinedMessage.length + signature.length);
         System.arraycopy(signature, 0, signedMessage, combinedMessage.length, signature.length);
-        System.out.println("Chave: " + key);
 
         InetAddress ip = InetAddress.getByName((String) User.getServers().get(0).get(0)); 
         int leaderPort = (int) User.getServers().get(0).get(1);        

@@ -91,23 +91,24 @@ public class PerfectLink extends Thread{
             }
             else if(data[0].equals("BOOT")){
                 byte[] signature = new byte[512];
-                byte[] keyBytes = new byte[512];
+                byte[] keyBytes = new byte[550];
                 byte[] msg = new byte[packet.getLength()-512];
                 System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
                 System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
-                System.arraycopy(packet.getData(), packet.getLength()-1024, keyBytes, 0, 512);  
+                System.arraycopy(packet.getData(), packet.getLength()-1062, keyBytes, 0, 550);  
+
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(keyBytes);
                 PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
-                System.out.println("Chave: " + publicKey);
+
 
                 
-                /*if (DigitalSignature.VerifySignature(msg, signature, publicKey)){
+                if (DigitalSignature.VerifySignature(msg, signature, publicKey)){
                     Server.createAccount(publicKey);
                 }
                 else {
                     System.out.println("A assinatura deu merda.");
-                }*/
+                }
             }
             else{
                 String id = message.split(":")[0].split(":")[0];
