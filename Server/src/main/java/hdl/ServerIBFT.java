@@ -177,7 +177,7 @@ public class ServerIBFT {
             for (List<Object> instance : instances){
                 if ((int) instance.get(0) == writtenInstance+1){
                     if ((int) instance.get(5) == 1){
-                        blockchain.appendString((String) instance.get(3));
+                        //blockchain.appendString((String) instance.get(3));
                         if(Server.getIsMain()){
                             respondToUser((int)instance.get(0), 0);
                         }

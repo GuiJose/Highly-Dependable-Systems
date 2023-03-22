@@ -2,10 +2,13 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.crypto.SecretKey;
 import hdl.RSAKeyGenerator;
 
@@ -17,6 +20,7 @@ public class Server extends Thread{
     private static Blockchain blockchain = new Blockchain();
     private static PerfectLink perfectLink;
     private static ServerIBFT ibtf;
+    private static ConcurrentHashMap<PublicKey, Integer> accounts = new ConcurrentHashMap<>();
     private static List<List<Object>> keys = new ArrayList<>(); 
     // Object = [id, key, iv, address, port]
     private static int currentLeader = 0; 
@@ -49,7 +53,8 @@ public class Server extends Thread{
             System.out.print("Enter '1' to print the ledger:");  
             int a = sc.nextInt();
             if (a == 1){
-                blockchain.print();
+                //blockchain.print();
+                System.out.println(accounts.size());
             }  
         }
     }
@@ -96,12 +101,16 @@ public class Server extends Thread{
         return currentLeader;
     }
 
-    public static void generateUserKey(String id, String address, String port) throws Exception{
+    public static void createAccount(PublicKey pubKey){
+        accounts.put(pubKey, 100);
+    }
+
+    /*public static void generateUserKey(String id, String address, String port) throws Exception{
         SecretKey key = SymetricKey.createKey();
         byte[] iv = SymetricKey.createIV();
         List<Object> newList = new ArrayList<>();
         newList.addAll(Arrays.asList(id, key, iv, address, port));
         keys.add(newList);
         perfectLink.sendBootMessage(id, address, port, key, iv);
-    }
+    }*/
 }

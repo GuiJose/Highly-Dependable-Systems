@@ -1,11 +1,13 @@
 package hdl;
 
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Blockchain {
-    private List<String> wordsList;
-    public Blockchain(){
+    private List<Block> blocks;
+    /*public Blockchain(){
         wordsList = new ArrayList<>();
     }
 
@@ -20,5 +22,5 @@ public class Blockchain {
             System.out.print("====>");
         }
         System.out.print("\n");
-    }
+    }*/
 }

@@ -3,6 +3,7 @@ package hdl;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.net.DatagramSocket;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,8 +13,6 @@ import hdl.RSAKeyGenerator;
 public class User extends Thread {
     private static int id;
     private static int port;
-    private static DatagramSocket senderSocket;
-    private static List<List<Object>> addresses = new ArrayList<>();
     private static List<List<Object>> ServerAddresses = new ArrayList<>();
     private static UserFrontend frontend;
 
@@ -30,19 +29,19 @@ public class User extends Thread {
         getServersAdd();
         RSAKeyGenerator.write(id,"u");
 
-        senderSocket = new DatagramSocket();
         frontend = new UserFrontend(port);
         User thread = new User();
         thread.start();
 
-        frontend.sendBoot(Integer.toString(id) + ":0:BOOT:localhost:" + Integer.toString(port));
+        PublicKey pubKey = RSAKeyGenerator.readPublic("../Common/resources/U" + id + "public.key"); 
+        frontend.sendBoot(port, pubKey);
 
-        while (true){
+        /*while (true){
           Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
           System.out.println("Write the word to be appended(':' not allowed):");  
           String word = sc.nextLine();
           frontend.sendRequest(word);
-        }
+        }*/
     }
     
     private static void getServersAdd(){

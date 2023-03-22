@@ -3,8 +3,10 @@ package hdl;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -64,8 +66,7 @@ public class PerfectLink extends Thread{
         while(true){
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
-            String[] data = message.split(":");
-            System.out.println(message);
+            String[] data = message.split(":", 3);
             if (data[2].equals("ADD")){
                 if (Server.getIsMain()){
                     for(List<Object> key : Server.getKeys()){
@@ -81,7 +82,6 @@ public class PerfectLink extends Thread{
                             
                             byte[] macToVerify = HMAC.createHMAC(message2);
                             if (Arrays.equals(macToVerify, decryptedMac)){
-                                System.out.println("ola");
                                 serverIbtf.receivedMessage(packet);
                             }
                             break;
@@ -89,10 +89,25 @@ public class PerfectLink extends Thread{
                     }
                 }
             }
-            else if(data[2].equals("BOOT")){
-                if (Server.getIsMain()){
-                    Server.generateUserKey(data[0], data[3], data[4]);
+            else if(data[0].equals("BOOT")){
+                byte[] signature = new byte[512];
+                byte[] keyBytes = new byte[512];
+                byte[] msg = new byte[packet.getLength()-512];
+                System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
+                System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
+                System.arraycopy(packet.getData(), packet.getLength()-1024, keyBytes, 0, 512);  
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(keyBytes);
+                PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
+                System.out.println("Chave: " + publicKey);
+
+                
+                /*if (DigitalSignature.VerifySignature(msg, signature, publicKey)){
+                    Server.createAccount(publicKey);
                 }
+                else {
+                    System.out.println("A assinatura deu merda.");
+                }*/
             }
             else{
                 String id = message.split(":")[0].split(":")[0];
