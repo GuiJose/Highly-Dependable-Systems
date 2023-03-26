@@ -105,6 +105,16 @@ public class Server extends Thread{
         accounts.put(pubKey, 100);
     }
 
+    public static void checkBalance(PublicKey pubKey, int port) throws Exception{
+        if(accounts.containsKey(pubKey)){
+            int ammount = accounts.get(pubKey);
+            perfectLink.sendMessage("localhost", port, "CHECK:" + Integer.toString(ammount) + ":" + id + ":");
+        }
+        else{
+            perfectLink.sendMessage("localhost", port, "CHECK:Account does not exist:" + id + ":");
+        }
+    }
+
     /*public static void generateUserKey(String id, String address, String port) throws Exception{
         SecretKey key = SymetricKey.createKey();
         byte[] iv = SymetricKey.createIV();

@@ -57,8 +57,8 @@ public class PerfectLink extends Thread{
     // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value:signature
     // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value:signature
     // SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
-    // USERID:MESSAGE_ID:ADD:string:ip:port:MAC
-    // USERID:MESSAGE_ID:BOOT:ip:port
+    // MESSAGE_ID:CHECK:ip:port:signature
+    // BOOT:ip:port:signature
 
     public synchronized void listening() throws Exception{    
         byte[] buffer = new byte[4096];
@@ -66,26 +66,28 @@ public class PerfectLink extends Thread{
         while(true){
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
-            String[] data = message.split(":", 3);
-            if (data[2].equals("ADD")){
+            String[] data = message.split(":", 5);
+            if (data[1].equals("CHECK")){
+                System.out.println("ENTREI NO CHECK");
                 if (Server.getIsMain()){
-                    for(List<Object> key : Server.getKeys()){
-                        if (((String)key.get(0)).equals(data[0])){
-                            SecretKey userKey = (SecretKey)key.get(1);
-                            byte[] iv = (byte[])key.get(2);
+                    byte[] signature = new byte[512];
+                    byte[] keyBytes = new byte[550];
+                    byte[] msg = new byte[packet.getLength()-512];
+                    System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
+                    System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
+                    System.arraycopy(packet.getData(), packet.getLength()-1062, keyBytes, 0, 550);  
 
-                            byte[] encryptedMac = new byte[48];
-                            System.arraycopy(packet.getData(), packet.getLength()-48, encryptedMac, 0, 48); 
-                            byte[] decryptedMac = SymetricKey.decrypt(encryptedMac, userKey, iv);
+                    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                    X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(keyBytes);
+                    PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
 
-                            String message2 = data[0] + ":" + data[1] + ":" + data[2] + ":" + data[3] + ":" + data[4] + ":" + data[5] + ":";
-                            
-                            byte[] macToVerify = HMAC.createHMAC(message2);
-                            if (Arrays.equals(macToVerify, decryptedMac)){
-                                serverIbtf.receivedMessage(packet);
-                            }
-                            break;
-                        }
+
+                    
+                    if (DigitalSignature.VerifySignature(msg, signature, publicKey)){
+                        Server.checkBalance(publicKey,Integer.parseInt(data[3]));
+                    }
+                    else {
+                        System.out.println("A assinatura deu merda.");
                     }
                 }
             }
@@ -184,21 +186,16 @@ public class PerfectLink extends Thread{
     }
 
     public void sendMessage(String address, int port, String message) throws Exception{
-        byte[] mac = HMAC.createHMAC(message);
         byte[] buffer = message.getBytes();
-        for (List<Object> x: Server.getKeys()){
-            if (port == Integer.parseInt((String)x.get(4))){
-                SecretKey key = (SecretKey) x.get(1);
-                byte[] iv = (byte[]) x.get(2); 
-                byte[] encryptMac = SymetricKey.encrypt(mac, key, iv);
-                byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + encryptMac.length);
-                System.arraycopy(encryptMac, 0, combinedMessage, buffer.length, encryptMac.length);
-                InetAddress ip = InetAddress.getByName(address);     
-                DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
-                this.senderSocket.send(packet);
-                break;
-            }
-        }
+        String keyPath = "resources/S" + Server.getid() + "private.key";
+        PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
+        byte[] signature = DigitalSignature.CreateSignature(buffer, key);
+        byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + signature.length);
+        System.arraycopy(signature, 0, combinedMessage, buffer.length, signature.length);
+        InetAddress ip = InetAddress.getByName(address);     
+        DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
+        this.senderSocket.send(packet);
+        
     }
 
     //BOOT:key:iv

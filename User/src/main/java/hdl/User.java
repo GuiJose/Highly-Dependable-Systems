@@ -34,14 +34,23 @@ public class User extends Thread {
         thread.start();
 
         PublicKey pubKey = RSAKeyGenerator.readPublic("../Common/resources/U" + id + "public.key"); 
-        frontend.sendBoot(port, pubKey);
+        //frontend.sendBoot(port, pubKey);
 
-        /*while (true){
+        while (true){
           Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  
-          System.out.println("Write the word to be appended(':' not allowed):");  
-          String word = sc.nextLine();
-          frontend.sendRequest(word);
-        }*/
+          System.out.println("Choose the operation:\n1. Check Balance\n2. Transfer Money");  
+          String option = sc.nextLine();
+          if(option.equals("1")){
+            frontend.sendCheck(port,pubKey);
+          }
+          else if( option.equals("2")){
+            System.out.println("Indicate User and ammount:");
+            String option2 = sc.nextLine();
+            System.out.println("USER = " + option2.split(" ")[0] + " Ammount = " + option2.split(" ")[1]);
+            //frontend.sendTransfer(option2.split(" ")[0], option2.split(" ")[1]);
+          }
+          
+        }
     }
     
     private static void getServersAdd(){

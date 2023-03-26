@@ -16,18 +16,18 @@ done
 count=1
 while [ $count -le $serversNonBizantine ]; do
   id=$(printf "%d" $((count-1)))
+  >../Common/resources/S"$id"public.key
+  >resources/S"$id"private.key
   gnome-terminal \
   -e "bash -c 'mvn exec:java -Dexec.args=\"$id 0\"; bash'"
-   >../Common/resources/S"$id"public.key
-   >resources/S"$id"private.key
   count=$((count+1))
 done
 
 while [ $count -le $1 ]; do
   id=$(printf "%d" $((count-1)))
+  >../Common/resources/S"$id"public.key
+  >resources/S"$id"private.key
   gnome-terminal \
   -e "bash -c 'mvn exec:java -Dexec.args=\"$id 1\"; bash'"
-   >../Common/resources/S"$id"public.key
-   >resources/S"$id"private.key
   count=$((count+1))
 done
