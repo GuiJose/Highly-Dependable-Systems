@@ -2,7 +2,6 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.net.DatagramSocket;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,7 +33,7 @@ public class User extends Thread {
         thread.start();
 
         PublicKey pubKey = RSAKeyGenerator.readPublic("../Common/resources/U" + id + "public.key"); 
-        //frontend.sendBoot(port, pubKey);
+        frontend.sendBoot(port, pubKey);
 
         while (true){
           Scanner sc= new Scanner(System.in);    //System.in is a standard input stream  

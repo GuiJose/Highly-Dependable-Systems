@@ -101,8 +101,9 @@ public class Server extends Thread{
         return currentLeader;
     }
 
-    public static void createAccount(PublicKey pubKey){
+    public static void createAccount(PublicKey pubKey, int port) throws Exception{
         accounts.put(pubKey, 100);
+        perfectLink.sendMessage("localhost", port, id + ":BOOT:");
     }
 
     public static void checkBalance(PublicKey pubKey, int port) throws Exception{

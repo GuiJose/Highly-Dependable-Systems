@@ -23,6 +23,7 @@ public class PerfectLink extends Thread{
     private List<List<Integer>> messagesNotACKED;
     private List<String> messagesHistory;
     private int messageToServersID = 0;
+    private List<List<Integer>> receivedMessagesFromUser;
 
     public PerfectLink(int port, ServerIBFT ibtf, int numServers) throws Exception{
         this.receiverSocket = new DatagramSocket(port);
@@ -57,8 +58,8 @@ public class PerfectLink extends Thread{
     // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value:signature
     // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value:signature
     // SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
-    // MESSAGE_ID:CHECK:ip:port:signature
-    // BOOT:ip:port:signature
+    // USER_ID:MESSAGE_ID:CHECK:ip:port:signature
+    // USER_ID:MESSAGE_ID:BOOT:ip:port:signature
 
     public synchronized void listening() throws Exception{    
         byte[] buffer = new byte[4096];
@@ -66,9 +67,8 @@ public class PerfectLink extends Thread{
         while(true){
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
-            String[] data = message.split(":", 5);
-            if (data[1].equals("CHECK")){
-                System.out.println("ENTREI NO CHECK");
+            String[] data = message.split(":", 6);
+            if (data[2].equals("CHECK")){
                 if (Server.getIsMain()){
                     byte[] signature = new byte[512];
                     byte[] keyBytes = new byte[550];
@@ -81,17 +81,14 @@ public class PerfectLink extends Thread{
                     X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(keyBytes);
                     PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
 
-
-                    
                     if (DigitalSignature.VerifySignature(msg, signature, publicKey)){
-                        Server.checkBalance(publicKey,Integer.parseInt(data[3]));
-                    }
-                    else {
-                        System.out.println("A assinatura deu merda.");
+                        sendACKtoUser(data[3], Integer.parseInt(data[4]), data[1]);
+                        Server.checkBalance(publicKey,Integer.parseInt(data[4]));
                     }
                 }
             }
-            else if(data[0].equals("BOOT")){
+            else if(data[2].equals("BOOT")){
+                System.out.println("boot");
                 byte[] signature = new byte[512];
                 byte[] keyBytes = new byte[550];
                 byte[] msg = new byte[packet.getLength()-512];
@@ -102,14 +99,10 @@ public class PerfectLink extends Thread{
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");
                 X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(keyBytes);
                 PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
-
-
                 
                 if (DigitalSignature.VerifySignature(msg, signature, publicKey)){
-                    Server.createAccount(publicKey);
-                }
-                else {
-                    System.out.println("A assinatura deu merda.");
+                    sendACKtoUser(data[3], Integer.parseInt(data[4]), data[1]);
+                    Server.createAccount(publicKey, Integer.parseInt(data[4]));
                 }
             }
             else{
@@ -149,6 +142,19 @@ public class PerfectLink extends Thread{
             return false;
         }
         return true;
+    }
+
+    public synchronized void sendACKtoUser(String ip, int port, String msgId) throws Exception{
+        InetAddress ip2 = InetAddress.getByName(ip);
+        String message = Integer.toString(Server.getid()) + ":ACK:" + msgId + ":";
+        byte[] buffer = message.getBytes();
+        String keyPath = "resources/S" + Server.getid() + "private.key";
+        PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
+        byte[] signedMessage = DigitalSignature.CreateSignature(buffer, key);
+        byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + signedMessage.length);
+        System.arraycopy(signedMessage, 0, combinedMessage, buffer.length, signedMessage.length);
+        DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip2, port);
+        this.senderSocket.send(packet);
     }
 
     public synchronized void sendACK(int ServerID, int msgID) throws Exception{
