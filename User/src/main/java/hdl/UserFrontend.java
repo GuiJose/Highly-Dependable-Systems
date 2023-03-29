@@ -90,7 +90,7 @@ public class UserFrontend {
     }
 
     public synchronized void receivedACK(int serverid, int messageACKED){
-        messagesNotACKED.get(messageACKED).remove(serverid);
+        messagesNotACKED.get(messageACKED).remove(Integer.valueOf(serverid));
     }
 
     //MessageID:CHECK:ip:port:Assinatura
@@ -134,16 +134,19 @@ public class UserFrontend {
         byte[] signedMessage = Arrays.copyOf(combinedMessage, combinedMessage.length + signature.length);
         System.arraycopy(signature, 0, signedMessage, combinedMessage.length, signature.length);
 
-        InetAddress ip = InetAddress.getByName((String) User.getServers().get(0).get(0)); 
-        int leaderPort = (int) User.getServers().get(0).get(1);        
-        DatagramPacket packet = new DatagramPacket(signedMessage, signedMessage.length, ip, leaderPort);
-        this.senderSocket.send(packet);
+        for(List<Object> server : User.getServers() ){
+            InetAddress ip = InetAddress.getByName((String) server.get(0)); 
+            int serverPort = (int) server.get(1);        
+            DatagramPacket packet = new DatagramPacket(signedMessage, signedMessage.length, ip, serverPort);
+            this.senderSocket.send(packet);
+        }
         List<Integer> serverIds = new ArrayList<>();
         for (int i = 0; i < User.getServers().size(); i++){
             serverIds.add(i);
         }
         messagesHistory.add(messageID, signedMessage);
         this.messagesNotACKED.add(messageID, serverIds);
+        System.out.println(messagesNotACKED.get(messageID));
         this.messageID++;
     }
 
