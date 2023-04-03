@@ -46,7 +46,7 @@ public class User extends Thread {
             System.out.println("Indicate User and ammount:");
             String option2 = sc.nextLine();
             System.out.println("USER = " + option2.split(" ")[0] + " Ammount = " + option2.split(" ")[1]);
-            //frontend.sendTransfer(option2.split(" ")[0], option2.split(" ")[1]);
+            frontend.sendTransfer(option2.split(" ")[0], option2.split(" ")[1], pubKey, port);
           }
           
         }

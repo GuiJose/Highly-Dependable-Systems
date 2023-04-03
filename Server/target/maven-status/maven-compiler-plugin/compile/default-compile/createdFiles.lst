@@ -1,5 +1,5 @@
-hdl/ServerIBFT.class
 hdl/Blockchain.class
+hdl/ServerIBFT.class
 hdl/PerfectLink.class
 hdl/Block.class
 hdl/PerfectLink$1.class

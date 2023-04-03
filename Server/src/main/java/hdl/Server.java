@@ -2,7 +2,9 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,7 +22,7 @@ public class Server extends Thread{
     private static Blockchain blockchain = new Blockchain();
     private static PerfectLink perfectLink;
     private static ServerIBFT ibtf;
-    private static ConcurrentHashMap<PublicKey, Integer> accounts = new ConcurrentHashMap<>();
+    private static ConcurrentHashMap<PublicKey, int[]> accounts = new ConcurrentHashMap<>();
     private static List<List<Object>> keys = new ArrayList<>(); 
     // Object = [id, key, iv, address, port]
     private static int currentLeader = 0; 
@@ -102,26 +104,53 @@ public class Server extends Thread{
     }
 
     public static void createAccount(PublicKey pubKey, int port) throws Exception{
-        accounts.put(pubKey, 100);
-        perfectLink.sendMessage("localhost", port, id + ":BOOT:");
+        int[] array = {100, 0};
+        if (!accounts.containsKey(pubKey)){
+            accounts.put(pubKey, array);
+            perfectLink.sendMessage("localhost", port, id + ":BOOT:");
+        }
     }
 
     public static void checkBalance(PublicKey pubKey, int port) throws Exception{
         if(accounts.containsKey(pubKey)){
-            int ammount = accounts.get(pubKey);
-            perfectLink.sendMessage("localhost", port, "CHECK:" + Integer.toString(ammount) + ":" + id + ":");
+            int ammount = accounts.get(pubKey)[0];
+            int writeTimeStamp = accounts.get(pubKey)[1];
+            perfectLink.sendMessage("localhost", port, "CHECK:" + ammount + ":" + writeTimeStamp + ":" + id + ":");
         }
         else{
             perfectLink.sendMessage("localhost", port, "CHECK:Account does not exist:" + id + ":");
         }
     }
 
-    /*public static void generateUserKey(String id, String address, String port) throws Exception{
-        SecretKey key = SymetricKey.createKey();
-        byte[] iv = SymetricKey.createIV();
-        List<Object> newList = new ArrayList<>();
-        newList.addAll(Arrays.asList(id, key, iv, address, port));
-        keys.add(newList);
-        perfectLink.sendBootMessage(id, address, port, key, iv);
-    }*/
+    public static boolean validateTransfer(PublicKey sourceKey, PublicKey destinationKey, int amount){
+        return accounts.containsKey(sourceKey) && accounts.containsKey(destinationKey) && accounts.get(sourceKey)[0] >= (amount+1); 
+    }
+
+    public static boolean validateBlock(Block b) throws Exception{
+        for (byte[] o : b.getOperations()) {
+            byte[] signature = new byte[512];
+            byte[] destinationKeyBytes = new byte[550];
+            byte[] sourceKeyBytes = new byte[550];
+            byte[] msg = new byte[o.length-512];
+            System.arraycopy(o, o.length-512, signature, 0, 512); 
+            System.arraycopy(o, o.length-1062, destinationKeyBytes, 0, 550);
+            System.arraycopy(o, o.length-1612, sourceKeyBytes, 0, 550);
+            System.arraycopy(o, 0, msg, 0, o.length-512);
+            
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            X509EncodedKeySpec sourceKeySpec = new X509EncodedKeySpec(sourceKeyBytes);
+            PublicKey sourcePK = keyFactory.generatePublic(sourceKeySpec);
+            X509EncodedKeySpec destinationKeySpec = new X509EncodedKeySpec(destinationKeyBytes);
+            PublicKey destinationPK = keyFactory.generatePublic(destinationKeySpec);
+
+            if (DigitalSignature.VerifySignature(msg, signature, sourcePK)){
+                String newString = new String(o);
+                if (validateTransfer(sourcePK, destinationPK, Integer.parseInt(newString.split(":")[5]))){
+                    continue;
+                }
+            }
+            return false;
+        }
+        return true;
+    }
 }

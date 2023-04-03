@@ -3,6 +3,7 @@ package hdl;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -21,9 +22,8 @@ public class PerfectLink extends Thread{
     private ServerIBFT serverIbtf;
     private List<List<Integer>> receivedMessages;
     private List<List<Integer>> messagesNotACKED;
-    private List<String> messagesHistory;
+    private List<byte[]> messagesHistory;
     private int messageToServersID = 0;
-    private List<List<Integer>> receivedMessagesFromUser;
 
     public PerfectLink(int port, ServerIBFT ibtf, int numServers) throws Exception{
         this.receiverSocket = new DatagramSocket(port);
@@ -60,15 +60,47 @@ public class PerfectLink extends Thread{
     // SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
     // USER_ID:MESSAGE_ID:CHECK:ip:port:signature
     // USER_ID:MESSAGE_ID:BOOT:ip:port:signature
+    // USER_ID:MESSAGE_ID:TRANSFER:ip:port:ammount:SPK|DPK|signature
 
     public synchronized void listening() throws Exception{    
-        byte[] buffer = new byte[4096];
+        byte[] buffer = new byte[8192];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         while(true){
             receiverSocket.receive(packet);
             String message = new String(packet.getData(), 0, packet.getLength());
-            String[] data = message.split(":", 6);
-            if (data[2].equals("CHECK")){
+            String[] data = message.split(":", 7);
+            System.out.println("recebi preprepare20");
+            if (data[2].equals("TRANSFER")){
+                sendACKtoUser(data[3], Integer.parseInt(data[4]), data[1]);
+                if (Server.getIsMain()){
+                    byte[] signature = new byte[512];
+                    byte[] destinationKeyBytes = new byte[550];
+                    byte[] sourceKeyBytes = new byte[550];
+                    byte[] msg = new byte[packet.getLength()-512];
+                    System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
+                    System.arraycopy(packet.getData(), packet.getLength()-1062, destinationKeyBytes, 0, 550);
+                    System.arraycopy(packet.getData(), packet.getLength()-1612, sourceKeyBytes, 0, 550);
+                    System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
+                    
+                    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                    X509EncodedKeySpec sourceKeySpec = new X509EncodedKeySpec(sourceKeyBytes);
+                    PublicKey sourcePK = keyFactory.generatePublic(sourceKeySpec);
+                    X509EncodedKeySpec destinationKeySpec = new X509EncodedKeySpec(destinationKeyBytes);
+                    PublicKey destinationPK = keyFactory.generatePublic(destinationKeySpec);
+
+                    if (DigitalSignature.VerifySignature(msg, signature, sourcePK)){
+                        if (Server.validateTransfer(sourcePK, destinationPK, Integer.parseInt(data[5]))){
+                            serverIbtf.addOperation(packet);
+                        }
+                        else{
+                            System.out.println("OPERAÇAO INVALIDA");
+                        }
+                    }
+
+
+                }
+            }
+            else if (data[2].equals("CHECK")){
                 if (Server.getIsMain()){
                     byte[] signature = new byte[512];
                     byte[] keyBytes = new byte[550];
@@ -106,8 +138,11 @@ public class PerfectLink extends Thread{
                 }
             }
             else{
+                System.out.println("recebi preprepare4");
                 String id = message.split(":")[0].split(":")[0];
+                System.out.println(id);
                 String keyPath = "../Common/resources/S" + id + "public.key";
+                System.out.println(keyPath);
                 PublicKey key = RSAKeyGenerator.readPublic(keyPath);
 
                 byte[] signature = new byte[512];
@@ -116,6 +151,7 @@ public class PerfectLink extends Thread{
                 System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512); 
 
                 if (DigitalSignature.VerifySignature(msg, signature, key)){
+                    System.out.println("recebi preprepare9");
                     if (data[1].equals("ACK")){
                         receivedACK(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
                     }
@@ -178,8 +214,7 @@ public class PerfectLink extends Thread{
                 List<Object> address = Server.getAddresses().get(i);
                 InetAddress ip = InetAddress.getByName((String)address.get(0));
                 int port = (int)address.get(1);
-                String message = messagesHistory.get(j);
-                byte[] buffer = message.getBytes();
+                byte[] buffer = messagesHistory.get(j);
                 String keyPath = "resources/S" + Server.getid() + "private.key";
                 PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
                 byte[] signedMessage = DigitalSignature.CreateSignature(buffer, key);
@@ -225,23 +260,27 @@ public class PerfectLink extends Thread{
         this.senderSocket.send(packet);
     }
 
-    public synchronized void broadcast(String message) throws Exception{
-        message = message + ':';
+    public synchronized void broadcast(byte[] b) throws Exception{
+        
+        String concatenatedString = new String(b, StandardCharsets.UTF_8) + ":";
+        byte[] buffer = concatenatedString.getBytes(StandardCharsets.UTF_8);
+        
         for (List<Integer> i : messagesNotACKED){
             i.add(this.messageToServersID);
         }
-        this.messagesHistory.add(message);
+        this.messagesHistory.add(buffer);
         this.messageToServersID++;
+
         for (List<Object> address : Server.getAddresses()) {
             InetAddress ip = InetAddress.getByName((String)address.get(0));
             int port = (int)address.get(1);        
-            byte[] buffer = message.getBytes();
             String keyPath = "resources/S" + Server.getid() + "private.key";
             PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
             byte[] signedMessage = DigitalSignature.CreateSignature(buffer, key);
             byte[] combinedMessage = Arrays.copyOf(buffer, buffer.length + signedMessage.length);
             System.arraycopy(signedMessage, 0, combinedMessage, buffer.length, signedMessage.length);
             DatagramPacket packet = new DatagramPacket(combinedMessage, combinedMessage.length, ip, port);
+            System.out.println("enviei2");
             this.senderSocket.send(packet);
         }
     }

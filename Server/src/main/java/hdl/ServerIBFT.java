@@ -1,6 +1,11 @@
 package hdl;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -15,11 +20,12 @@ import java.util.concurrent.locks.ReentrantLock;
 public class ServerIBFT {
     private List<String[]> requests = new ArrayList<>();
     private List<List<Object>> instances = new ArrayList<>();
-    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado]
+    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], block, hora que começou, estado]
     private Blockchain blockchain; 
     private int quorum;
     private int currentInstance = 0;
     private int writtenInstance = -1;
+    private Block block = new Block(); 
     private final Lock lock = new ReentrantLock();
 
 
@@ -41,44 +47,66 @@ public class ServerIBFT {
         timer.schedule(task, 0, 15000);
     }
 
-    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value
-    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value
-    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value
+    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:block
+    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:block
+    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:block
     // USERID:MESSAGE_ID:ADD:string:ip:port 
 
     public synchronized void receivedMessage(DatagramPacket packet) throws Exception{
         lock.lock();
-        String message = new String(packet.getData(), 0, packet.getLength());
+        String message = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
         String[] data = message.split(":");
-        if (data[2].equals("PREPREPARE")){receivedPrePrepare(data);}
+        if (data[2].equals("PREPREPARE")){System.out.println("recebi preprepare2"); receivedPrePrepare(data);}
         else if (data[2].equals("PREPARE")){receivedPrepare(data);}
         else if (data[2].equals("COMMIT")){receivedCommit(data);}
         else if (data[2].equals("ADD")){
-            System.out.println("recebi pedido de add");
-            String[] request = {data[4], data[5], data[3], Integer.toString(currentInstance)};
-            requests.add(request);
-            start(data[3]);
+            System.out.println("recebi pedido de operação");
+            addOperation(packet);
         }
         lock.unlock();
     }
+    
+    public synchronized Block getBlock(){
+        return this.block;
+    }
 
-    // SERVER_ID MESSAGE_ID PREPREPARE lambda value
+    public synchronized void addOperation(DatagramPacket packet) throws Exception{
+        this.block.appendOperation(packet.getData());
+        System.out.println("APPEND OP");
+        if (this.block.getSize() == 1) {
+            start(this.block);
+            this.block.clearBlock();
+        }
+    }
+
+    // SERVER_ID MESSAGE_ID PREPREPARE lambda block
     public synchronized void receivedPrePrepare(String[] data) throws Exception{
+        System.out.println("recebi preprepare");
         if (Integer.parseInt(data[0]) != Server.getCurrentLeader()){
+            System.out.println("Recebi um preprepare de um bizantino.");
             return;
         }
-        System.out.println("recebi preprepare");
+
+        ByteArrayInputStream bais = new ByteArrayInputStream(data[4].getBytes());
+        ObjectInputStream ois = new ObjectInputStream(bais);
+        Block b = (Block) ois.readObject();
+
+        if (!Server.validateBlock(b)){
+            System.out.println("Recebi um preprepare, mas o bloco tava adulterado.");
+            return;
+        }
+
+        instances.add(Arrays.asList(Integer.parseInt(data[3]), new ArrayList<>(), new ArrayList<>(), b, LocalTime.now(), 0));
+
         for (List<Object> instance : instances){
             if (instance.get(0).equals(Integer.parseInt(data[3]))){
                 sendPrepare(data[4], data[3]);
                 return;
             }
         }
-        //instances.add(Arrays.asList(Integer.parseInt(data[3]), new ArrayList<>(), new ArrayList<>(), data[4], LocalTime.now(), 0));
-        sendPrepare(data[4], data[3]);
     }
 
-    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], string, hora que começou, estado] 0 1 2
+    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], block, hora que começou, estado] 0 1 2
     // SERVER_ID MESSAGE_ID PREPARE lambda value
     public synchronized void receivedPrepare(String[] data) throws Exception{
         for (List<Object> instance : instances){
@@ -120,7 +148,7 @@ public class ServerIBFT {
     }
 
     // SERVER_ID MESSAGE_ID PREPARE lambda value
-    public synchronized void sendPrepare(String word, String numInstance) throws Exception{
+    public synchronized void sendPrepare(String b, String numInstance) throws Exception{
         if (Server.getIsBizantine()){
             Random random = new Random();
             int randomNumber = random.nextInt(2);
@@ -130,19 +158,25 @@ public class ServerIBFT {
             }
             else{
                 System.out.println("Enviei Prepare adulterado.");
-                String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPARE:" + numInstance + ":" + "String_Adulterada";
-                Server.getPerfectLink().broadcast(message);
+                String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPARE:" + numInstance + ":" + "Bloco_Adulterada";
+                Server.getPerfectLink().broadcast(message.getBytes());
             }
         }
         else {
             System.out.println("Enviei Prepare");
-            String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPARE:" + numInstance + ":" + word;
-            Server.getPerfectLink().broadcast(message);
+            String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPARE:" + numInstance + ":";
+            
+            // juntar o bloco à mensagem principal.
+            byte[] messageBytes = message.getBytes();
+            byte[] finalMessage = Arrays.copyOf(messageBytes, messageBytes.length + b.getBytes().length);
+            System.arraycopy(b.getBytes(), 0, finalMessage, messageBytes.length, b.getBytes().length);
+
+            Server.getPerfectLink().broadcast(finalMessage);
         }
     }
 
     // SERVER_ID MESSAGE_ID COMMIT lambda value
-    public synchronized void sendCommit(String word, String numInstance) throws Exception{
+    public synchronized void sendCommit(String b, String numInstance) throws Exception{
         if (Server.getIsBizantine()){
             Random random = new Random();
             int randomNumber = random.nextInt(2);
@@ -153,21 +187,40 @@ public class ServerIBFT {
             else{
                 System.out.println("Enviei Commit adulterado.");
                 String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":COMMIT:" + numInstance + ":" + "String_Adulterada";
-                Server.getPerfectLink().broadcast(message);
+                Server.getPerfectLink().broadcast(message.getBytes());
             }
         }
         else {
             System.out.println("Enviei Commit");
-            String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":COMMIT:" + numInstance + ":" + word;
-            Server.getPerfectLink().broadcast(message);
+            String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":COMMIT:" + numInstance + ":";
+            // juntar o bloco à mensagem principal.
+            byte[] messageBytes = message.getBytes();
+            byte[] finalMessage = Arrays.copyOf(messageBytes, messageBytes.length + b.getBytes().length);
+            System.arraycopy(b.getBytes(), 0, finalMessage, messageBytes.length, b.getBytes().length);
+            Server.getPerfectLink().broadcast(finalMessage);
         }
     }
 
     // SERVER_ID MESSAGE_ID PREPREPARE lambda value
-    public synchronized void start(String word) throws Exception{
+    public synchronized void start(Block block2) throws Exception{
         System.out.println("Fiz start");
-        String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPREPARE:" + Integer.toString(currentInstance) + ":" + word;
-        Server.getPerfectLink().broadcast(message);
+
+        //Serializar o Bloco.
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(block2);
+        byte[] data = baos.toByteArray();
+
+        String message = Integer.toString(Server.getid()) + ":" + Integer.toString(Server.getPerfectLink().getMessageId()) + ":PREPREPARE:" + Integer.toString(currentInstance) + ":";
+
+        // juntar o bloco à mensagem principal.
+
+        byte[] messageBytes = message.getBytes();
+        byte[] finalMessage = Arrays.copyOf(messageBytes, messageBytes.length + data.length);
+        System.arraycopy(data, 0, finalMessage, messageBytes.length, data.length);
+
+        System.out.println("enviei1");
+        Server.getPerfectLink().broadcast(finalMessage);
         currentInstance++;        
     }
     

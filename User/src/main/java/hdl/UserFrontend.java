@@ -40,7 +40,7 @@ public class UserFrontend {
         timer.schedule(task, 0, 2000);
     }
 
-    //CHECK:ammount:id:signature
+    //CHECK:ammount:wTS:id:signature
     //SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
     //SERVERID:BOOT:SIGNATURE
 
@@ -146,7 +146,43 @@ public class UserFrontend {
         }
         messagesHistory.add(messageID, signedMessage);
         this.messagesNotACKED.add(messageID, serverIds);
-        System.out.println(messagesNotACKED.get(messageID));
+        this.messageID++;
+    }
+
+    // USER_ID:MESSAGE_ID:TRANSFER:ip:port:ammount:SPK|DPK|signature
+    public void sendTransfer(String userID, String amount, PublicKey sourceKey, int port) throws Exception{
+        //Mensagrm com Key source
+        String message = User.getid() + ":" + this.messageID + ":TRANSFER:localhost:" + port + ":" + amount + ":";
+        byte[] messageBytes = message.getBytes();
+        byte[] sourceKeyBytes = sourceKey.getEncoded();
+        byte[] messageSPK = Arrays.copyOf(messageBytes, messageBytes.length + sourceKeyBytes.length);
+        System.arraycopy(sourceKeyBytes, 0, messageSPK, messageBytes.length, sourceKeyBytes.length);
+        
+
+        //Mensagem com Key Destino
+        PublicKey destinationPK = RSAKeyGenerator.readPublic("../Common/resources/U" + userID + "public.key");
+        byte[] destinationKeyBytes = destinationPK.getEncoded();
+        byte[] messageSPKDPK = Arrays.copyOf(messageSPK, messageSPK.length + destinationKeyBytes.length);
+        System.arraycopy(destinationKeyBytes, 0, messageSPKDPK, messageSPK.length, destinationKeyBytes.length);
+
+        //Mensagem Assinada
+        PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
+        byte[] signature = DigitalSignature.CreateSignature(messageSPKDPK, privKey);
+        byte[] signedMessage = Arrays.copyOf(messageSPKDPK, messageSPKDPK.length + signature.length);
+        System.arraycopy(signature, 0, signedMessage, messageSPKDPK.length, signature.length);
+
+        for(List<Object> server : User.getServers() ){
+            InetAddress ip = InetAddress.getByName((String) server.get(0)); 
+            int serverPort = (int) server.get(1);        
+            DatagramPacket packet = new DatagramPacket(signedMessage, signedMessage.length, ip, serverPort);
+            this.senderSocket.send(packet);
+        }
+        List<Integer> serverIds = new ArrayList<>();
+        for (int i = 0; i < User.getServers().size(); i++){
+            serverIds.add(i);
+        }
+        messagesHistory.add(messageID, signedMessage);
+        this.messagesNotACKED.add(messageID, serverIds);
         this.messageID++;
     }
 

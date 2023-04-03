@@ -1,9 +1,27 @@
 package hdl;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
-// [[publicKeySource, publicKeyDestination, amount]]
+public class Block implements Serializable{
+    private List<byte[]> operations = new ArrayList<>();
 
-public class Block {
-    //private List<>
+    public Block(){}
+
+    public void appendOperation(byte[] o){
+        operations.add(o);
+    }
+
+    public void clearBlock(){
+        operations.clear();
+    }
+
+    public int getSize(){
+        return operations.size();
+    }
+
+    public List<byte[]> getOperations(){
+        return operations;
+    }
 }
