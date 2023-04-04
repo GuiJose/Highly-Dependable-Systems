@@ -4,13 +4,18 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Block implements Serializable{
-    private List<byte[]> operations = new ArrayList<>();
+import hdl.messages.TRANSFER_MESSAGE;
 
+public class Block implements Serializable{
+    private List<List<Object>> operations = new ArrayList<>();
+    // [TRANFER_MESSAGE, Signature]
     public Block(){}
 
-    public void appendOperation(byte[] o){
-        operations.add(o);
+    public void appendOperation(TRANSFER_MESSAGE msg, byte[] signature){
+        List<Object> newList = new ArrayList<>();
+        newList.add(msg);
+        newList.add(signature);
+        operations.add(newList);
     }
 
     public void clearBlock(){
@@ -21,7 +26,7 @@ public class Block implements Serializable{
         return operations.size();
     }
 
-    public List<byte[]> getOperations(){
+    public List<List<Object>> getOperations(){
         return operations;
     }
 }

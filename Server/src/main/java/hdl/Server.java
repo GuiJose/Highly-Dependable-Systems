@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.crypto.SecretKey;
 import hdl.RSAKeyGenerator;
+import hdl.messages.TRANSFER_MESSAGE;
 
 public class Server extends Thread{
     private static int id;
@@ -103,54 +104,55 @@ public class Server extends Thread{
         return currentLeader;
     }
 
-    public static void createAccount(PublicKey pubKey, int port) throws Exception{
+    public static void createAccount(PublicKey pubKey, int port, String ip) throws Exception{
         int[] array = {100, 0};
         if (!accounts.containsKey(pubKey)){
             accounts.put(pubKey, array);
-            perfectLink.sendMessage("localhost", port, id + ":BOOT:");
+            perfectLink.sendMessage("localhost", port, "Account created!");
         }
     }
 
-    public static void checkBalance(PublicKey pubKey, int port) throws Exception{
+    public static void checkBalance(PublicKey pubKey, int port, String ip) throws Exception{
         if(accounts.containsKey(pubKey)){
             int ammount = accounts.get(pubKey)[0];
             int writeTimeStamp = accounts.get(pubKey)[1];
-            perfectLink.sendMessage("localhost", port, "CHECK:" + ammount + ":" + writeTimeStamp + ":" + id + ":");
+            perfectLink.sendMessage(ip, port, "Your balance is: " + ammount + " with timestamp: " + writeTimeStamp);
         }
         else{
-            perfectLink.sendMessage("localhost", port, "CHECK:Account does not exist:" + id + ":");
+            perfectLink.sendMessage(ip, port, "Account does not exist!");
         }
     }
 
     public static boolean validateTransfer(PublicKey sourceKey, PublicKey destinationKey, int amount){
-        return accounts.containsKey(sourceKey) && accounts.containsKey(destinationKey) && accounts.get(sourceKey)[0] >= (amount+1); 
+        return accounts.containsKey(sourceKey) && accounts.containsKey(destinationKey) && accounts.get(sourceKey)[0] >= (amount+1) && !sourceKey.equals(destinationKey); 
     }
 
     public static boolean validateBlock(Block b) throws Exception{
-        for (byte[] o : b.getOperations()) {
-            byte[] signature = new byte[512];
-            byte[] destinationKeyBytes = new byte[550];
-            byte[] sourceKeyBytes = new byte[550];
-            byte[] msg = new byte[o.length-512];
-            System.arraycopy(o, o.length-512, signature, 0, 512); 
-            System.arraycopy(o, o.length-1062, destinationKeyBytes, 0, 550);
-            System.arraycopy(o, o.length-1612, sourceKeyBytes, 0, 550);
-            System.arraycopy(o, 0, msg, 0, o.length-512);
-            
-            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-            X509EncodedKeySpec sourceKeySpec = new X509EncodedKeySpec(sourceKeyBytes);
-            PublicKey sourcePK = keyFactory.generatePublic(sourceKeySpec);
-            X509EncodedKeySpec destinationKeySpec = new X509EncodedKeySpec(destinationKeyBytes);
-            PublicKey destinationPK = keyFactory.generatePublic(destinationKeySpec);
+        for (List<Object> o : b.getOperations()) {
+            byte[] signature = (byte[]) o.get(1);
+            TRANSFER_MESSAGE message = (TRANSFER_MESSAGE) o.get(0);
+            byte[] msg = ByteArraysOperations.SerializeObject(message);
 
-            if (DigitalSignature.VerifySignature(msg, signature, sourcePK)){
-                String newString = new String(o);
-                if (validateTransfer(sourcePK, destinationPK, Integer.parseInt(newString.split(":")[5]))){
+            if (DigitalSignature.VerifySignature(msg, signature, message.getSPK())){
+                if (validateTransfer(message.getSPK(), message.getDPK(), message.getAmount())){
                     continue;
                 }
             }
             return false;
         }
         return true;
+    }
+
+    public static boolean transfer(PublicKey sourceKey, PublicKey destKey, int amount){
+        if (validateTransfer(sourceKey, destKey, amount)){
+            accounts.get(sourceKey)[0] -= (amount+1);
+            accounts.get(sourceKey)[1]++;
+            accounts.get(destKey)[0] += (amount);
+            accounts.get(destKey)[1]++;
+            return true;
+        }
+        else{
+            return false;
+        }
     }
 }

@@ -1,20 +1,22 @@
 package hdl;
 
+import java.io.ByteArrayInputStream;
+import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.Arrays;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
+import hdl.messages.ACK_MESSAGE;
+import hdl.messages.CHECK_MESSAGE;
+import hdl.messages.CREATE_MESSAGE;
+import hdl.messages.RESPONSE_USER;
+import hdl.messages.TRANSFER_MESSAGE;
 
 public class UserFrontend {
     private DatagramSocket senderSocket;
@@ -40,49 +42,38 @@ public class UserFrontend {
         timer.schedule(task, 0, 2000);
     }
 
-    //CHECK:ammount:wTS:id:signature
-    //SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
-    //SERVERID:BOOT:SIGNATURE
-
     public void listening() throws Exception{
         byte[] buffer = new byte[4096];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         
         while(true){
             receiverSocket.receive(packet);
-            String message = new String(packet.getData(), 0, packet.getLength());
-            String[] data = message.split(":", 4);
+        
+            byte[] signature = new byte[512];
+            byte[] msg = new byte[packet.getLength()-512];
+            System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
+            System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
+            
+            ByteArrayInputStream byteStream = new ByteArrayInputStream(msg);
+            ObjectInputStream objectStream = new ObjectInputStream(byteStream);
+            Object obj = objectStream.readObject();
 
-            if (data[1].equals("BOOT")){
-                byte[] signature = new byte[512];
-                byte[] msg = new byte[packet.getLength()-512];
-                System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
-                System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
-
-                String keyPath = "../Common/resources/S" + data[0] + "public.key";
+            if (obj instanceof ACK_MESSAGE){
+                ACK_MESSAGE M = (ACK_MESSAGE) obj;
+                String keyPath = "../Common/resources/S" + M.getId() + "public.key";
                 PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
-
                 if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
-                    System.out.println("Your account was created in server: " + data[0]);
-                }
-            }
-            else if (data[0].equals("CHECK")){
-                byte[] signature = new byte[512];
-                byte[] msg = new byte[packet.getLength()-512];
-                System.arraycopy(packet.getData(), packet.getLength()-512, signature, 0, 512); 
-                System.arraycopy(packet.getData(), 0, msg, 0, packet.getLength()-512);
-
-                String keyPath = "../Common/resources/S" + data[2] + "public.key";
-                PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
-
-
-                if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
-                    System.out.println("Your current balance is : " + data[1]);
+                    receivedACK(M.getId(), M.getMessageACKED());
                 }
             }
 
-            else if (data[1].equals("ACK")){
-                receivedACK(Integer.parseInt(data[0]), Integer.parseInt(data[2]));
+            else if (obj instanceof RESPONSE_USER){
+                RESPONSE_USER M = (RESPONSE_USER) obj;
+                String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
+                PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
+                if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
+                    System.out.println("Received message from server " + M.getServerId() + " with message: " + M.getMessage());
+                }
             }
 
             packet.setLength(buffer.length); 
@@ -95,17 +86,10 @@ public class UserFrontend {
 
     //MessageID:CHECK:ip:port:Assinatura
     public void sendCheck(int port, PublicKey key) throws Exception{
-        String message = User.getid() + ":" + this.messageID + ":CHECK:localhost:" + port + ":"; 
-        byte[] messageBytes = message.getBytes();
-        byte[] keyBytes = key.getEncoded();
-        byte[] combinedMessage = Arrays.copyOf(messageBytes, messageBytes.length + keyBytes.length);
-        System.arraycopy(keyBytes, 0, combinedMessage, messageBytes.length, keyBytes.length);
-
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
-        
-        byte[] signature = DigitalSignature.CreateSignature(combinedMessage, privKey);
-        byte[] signedMessage = Arrays.copyOf(combinedMessage, combinedMessage.length + signature.length);
-        System.arraycopy(signature, 0, signedMessage, combinedMessage.length, signature.length);
+        CHECK_MESSAGE message = new CHECK_MESSAGE(User.getid(), this.messageID, "localhost", port, key);
+        byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
+        byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, privKey);
 
         InetAddress ip = InetAddress.getByName((String) User.getServers().get(0).get(0)); 
         int leaderPort = (int) User.getServers().get(0).get(1);        
@@ -121,18 +105,12 @@ public class UserFrontend {
 
     //BOOT:ip:port:pubkey:Assinatura
 
-    public void sendBoot(int port, PublicKey key) throws Exception{
-        String message = User.getid() + ":" + this.messageID + ":BOOT:localhost:" + port + ":";
-        byte[] messageBytes = message.getBytes();
-        byte[] keyBytes = key.getEncoded();
-        byte[] combinedMessage = Arrays.copyOf(messageBytes, messageBytes.length + keyBytes.length);
-        System.arraycopy(keyBytes, 0, combinedMessage, messageBytes.length, keyBytes.length);
-
+    public void sendCreateAccount(int port, PublicKey key) throws Exception{
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
+        CREATE_MESSAGE message = new CREATE_MESSAGE(User.getid(), this.messageID, "localhost", port, key);
         
-        byte[] signature = DigitalSignature.CreateSignature(combinedMessage, privKey);
-        byte[] signedMessage = Arrays.copyOf(combinedMessage, combinedMessage.length + signature.length);
-        System.arraycopy(signature, 0, signedMessage, combinedMessage.length, signature.length);
+        byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
+        byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, privKey);
 
         for(List<Object> server : User.getServers() ){
             InetAddress ip = InetAddress.getByName((String) server.get(0)); 
@@ -150,27 +128,13 @@ public class UserFrontend {
     }
 
     // USER_ID:MESSAGE_ID:TRANSFER:ip:port:ammount:SPK|DPK|signature
-    public void sendTransfer(String userID, String amount, PublicKey sourceKey, int port) throws Exception{
-        //Mensagrm com Key source
-        String message = User.getid() + ":" + this.messageID + ":TRANSFER:localhost:" + port + ":" + amount + ":";
-        byte[] messageBytes = message.getBytes();
-        byte[] sourceKeyBytes = sourceKey.getEncoded();
-        byte[] messageSPK = Arrays.copyOf(messageBytes, messageBytes.length + sourceKeyBytes.length);
-        System.arraycopy(sourceKeyBytes, 0, messageSPK, messageBytes.length, sourceKeyBytes.length);
-        
-
-        //Mensagem com Key Destino
-        PublicKey destinationPK = RSAKeyGenerator.readPublic("../Common/resources/U" + userID + "public.key");
-        byte[] destinationKeyBytes = destinationPK.getEncoded();
-        byte[] messageSPKDPK = Arrays.copyOf(messageSPK, messageSPK.length + destinationKeyBytes.length);
-        System.arraycopy(destinationKeyBytes, 0, messageSPKDPK, messageSPK.length, destinationKeyBytes.length);
-
-        //Mensagem Assinada
+    public void sendTransfer(String userID, int amount, PublicKey sourceKey, int port) throws Exception{
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
-        byte[] signature = DigitalSignature.CreateSignature(messageSPKDPK, privKey);
-        byte[] signedMessage = Arrays.copyOf(messageSPKDPK, messageSPKDPK.length + signature.length);
-        System.arraycopy(signature, 0, signedMessage, messageSPKDPK.length, signature.length);
-
+        PublicKey destinationPK = RSAKeyGenerator.readPublic("../Common/resources/U" + userID + "public.key");
+        TRANSFER_MESSAGE message = new TRANSFER_MESSAGE(User.getid(), this.messageID, "localhost", port, sourceKey, destinationPK, amount);
+        byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
+        byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, privKey);
+        System.out.println(signedMessage.length);
         for(List<Object> server : User.getServers() ){
             InetAddress ip = InetAddress.getByName((String) server.get(0)); 
             int serverPort = (int) server.get(1);        
@@ -194,7 +158,6 @@ public class UserFrontend {
                 int port = (int)address.get(1);
                 byte[] message = messagesHistory.get(i);
                 DatagramPacket packet = new DatagramPacket(message, message.length, ip, port);
-                System.out.println("enviei");
                 this.senderSocket.send(packet);
             }
         }

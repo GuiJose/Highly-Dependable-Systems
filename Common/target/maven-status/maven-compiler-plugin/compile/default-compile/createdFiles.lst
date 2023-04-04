@@ -1,4 +1,10 @@
+hdl/messages/CHECK_MESSAGE.class
+hdl/messages/RESPONSE_USER.class
 hdl/DigitalSignature.class
-hdl/SymetricKey.class
 hdl/RSAKeyGenerator.class
 hdl/HMAC.class
+hdl/ByteArraysOperations.class
+hdl/messages/CREATE_MESSAGE.class
+hdl/SymetricKey.class
+hdl/messages/ACK_MESSAGE.class
+hdl/messages/TRANSFER_MESSAGE.class
