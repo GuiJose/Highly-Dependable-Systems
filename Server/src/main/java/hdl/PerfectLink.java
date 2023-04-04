@@ -15,7 +15,6 @@ import java.util.TimerTask;
 import hdl.messages.ACK_MESSAGE;
 import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.CREATE_MESSAGE;
-import hdl.messages.RESPONSE_USER;
 import hdl.messages.TRANSFER_MESSAGE;
 import hdl.messages.ibtfMessage;
 
@@ -54,16 +53,8 @@ public class PerfectLink extends Thread{
                 }
             }
         };
-        timer.schedule(task, 0, 2000);
+        timer.schedule(task, 0, 3000);
     }
-
-    // SERVER_ID:MESSAGE_ID:PREPREPARE:lambda:value:signature
-    // SERVER_ID:MESSAGE_ID:PREPARE:lambda:value:signature
-    // SERVER_ID:MESSAGE_ID:COMMIT:lambda:value:signature
-    // SERVER_ID:ACK:ID_MESSAGE_ACKED:signature
-    // USER_ID:MESSAGE_ID:CHECK:ip:port:signature
-    // USER_ID:MESSAGE_ID:BOOT:ip:port:signature
-    // USER_ID:MESSAGE_ID:TRANSFER:ip:port:ammount:SPK|DPK|signature
 
     public synchronized void listening() throws Exception{    
         byte[] buffer = new byte[25000];
@@ -195,12 +186,10 @@ public class PerfectLink extends Thread{
         }
     }
 
-    public void sendMessage(String address, int port, String message) throws Exception{
+    public void sendMessage(String address, int port, Object message) throws Exception{
         String keyPath = "resources/S" + Server.getid() + "private.key";
         PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
-        RESPONSE_USER M = new RESPONSE_USER(Server.getid(), this.messageID);     
-        M.setMessage(message);   
-        byte[] messageBytes = ByteArraysOperations.SerializeObject(M);
+        byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
         byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
     
         InetAddress ip = InetAddress.getByName(address);     

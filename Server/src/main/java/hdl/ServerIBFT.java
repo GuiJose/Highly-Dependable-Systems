@@ -1,13 +1,6 @@
 package hdl;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.DatagramPacket;
-import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -19,6 +12,7 @@ import java.util.TimerTask;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import hdl.messages.RESPONSE_TRANSFER;
 import hdl.messages.TRANSFER_MESSAGE;
 import hdl.messages.ibtfMessage;
 
@@ -91,6 +85,7 @@ public class ServerIBFT {
     //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], block, hora que começou, estado] 0 1 2
     // SERVER_ID MESSAGE_ID PREPARE lambda value
     public synchronized void receivedPrepare(ibtfMessage M) throws Exception{
+        System.out.println("recebi prepare");
         for (List<Object> instance : instances){
             if (instance.get(0).equals(M.getLambda())){
                 if ((int) instance.get(5) == 0){
@@ -110,6 +105,7 @@ public class ServerIBFT {
     }
 
     public synchronized void receivedCommit(ibtfMessage M) throws Exception{
+        System.out.println("recebi commit");
         for (List<Object> instance : instances){
             if (instance.get(0).equals(M.getLambda())){
                 if ((int) instance.get(5) == 0){
@@ -209,17 +205,11 @@ public class ServerIBFT {
                     if ((int) instance.get(5) == 1){
                         blockchain.appendBlock((Block) instance.get(3));
                         processBlock((Block) instance.get(3));
-                        if(Server.getIsMain()){
-                            respondToUser((int)instance.get(0), 0);
-                        }
                         writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
                     }
                     if ((int) instance.get(5) == 2){
-                        if(Server.getIsMain()){
-                            respondToUser((int)instance.get(0), 1);
-                        }
                         writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
@@ -232,32 +222,18 @@ public class ServerIBFT {
         }
     }
 
-    public void processBlock(Block block) throws Exception{
+    public synchronized void processBlock(Block block) throws Exception{
         for (List<Object> o : block.getOperations()){
             TRANSFER_MESSAGE msg = (TRANSFER_MESSAGE) o.get(0);
             if (Server.transfer(msg.getSPK(), msg.getDPK(), msg.getAmount())){
-                Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), "Your tranfer of " + msg.getAmount() + "succed.");
+                RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageId(), msg.getMessageId(), msg.getDestUserId(), true, msg.getAmount());
+                Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), message);
             }
             else{
-                Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), "Your tranfer of " + msg.getAmount() + " did not succed.");
+                RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageId(), msg.getMessageId(), msg.getDestUserId(), false, msg.getAmount());
+                Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), message);
             }
 
-        }
-    }
-
-    public synchronized void respondToUser(int instance, int mode) throws Exception{
-        System.out.println("Enviei resposta ao cliente.");
-        for (String[] request: requests){
-            if (Integer.parseInt(request[3]) == instance){
-                if (mode == 0){
-                    String message = "Your request for string: " + request[2] + " was appended at: " + LocalTime.now(); 
-                    //Server.getPerfectLink().sendMessage(request[0], Integer.parseInt(request[1]), message);
-                }
-                else{
-                    String message = "It was not possible to attend to your request for string: " + request[2]; 
-                    //Server.getPerfectLink().sendMessage(request[0], Integer.parseInt(request[1]), message);
-                }
-            } 
         }
     }
 

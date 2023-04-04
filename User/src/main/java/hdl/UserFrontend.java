@@ -11,23 +11,31 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 
 import hdl.messages.ACK_MESSAGE;
 import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.CREATE_MESSAGE;
-import hdl.messages.RESPONSE_USER;
+import hdl.messages.RESPONSE;
+import hdl.messages.RESPONSE_TRANSFER;
 import hdl.messages.TRANSFER_MESSAGE;
 
 public class UserFrontend {
+    private ConcurrentHashMap<Integer, List<List<Integer>>> transfers = new ConcurrentHashMap<>();
     private DatagramSocket senderSocket;
     private DatagramSocket receiverSocket;
     private int messageID = 0;
     private List<List<Integer>> messagesNotACKED = new ArrayList<>();
     private List<byte[]> messagesHistory = new ArrayList<>();
+    private int quorum;
+    private int readTimeStamp = 0;
     
-    public UserFrontend(int port) throws Exception{
+    public UserFrontend(int port, int numServers) throws Exception{
         this.senderSocket = new DatagramSocket();
         this.receiverSocket = new DatagramSocket(port);
+        int byzantineServersSuported = (int) Math.floor((numServers-1)/3);
+        this.quorum = byzantineServersSuported + 1;
+        System.out.println(this.quorum);
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -67,8 +75,8 @@ public class UserFrontend {
                 }
             }
 
-            else if (obj instanceof RESPONSE_USER){
-                RESPONSE_USER M = (RESPONSE_USER) obj;
+            else if (obj instanceof RESPONSE){
+                RESPONSE M = (RESPONSE) obj;
                 String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
                 PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
                 if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
@@ -76,7 +84,35 @@ public class UserFrontend {
                 }
             }
 
+            else if (obj instanceof RESPONSE_TRANSFER){
+                RESPONSE_TRANSFER M = (RESPONSE_TRANSFER) obj;
+                String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
+                PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
+                if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
+                    receivedResponseTransfer(M);
+                }
+            }
+
             packet.setLength(buffer.length); 
+        }
+    }
+
+    public synchronized void receivedResponseTransfer(RESPONSE_TRANSFER M){
+        if (M.getSucceded()){
+            if (!transfers.get(M.getTranferId()).get(0).contains(M.getServerId())){
+                transfers.get(M.getTranferId()).get(0).add(M.getServerId());
+                if (transfers.get(M.getTranferId()).get(0).size() == this.quorum){
+                    System.out.println("Your transfer of " + M.getAmount() + " to user " + M.getDestUserId() + " succeded.");
+                }
+            }
+        }
+        else{
+            if (!transfers.get(M.getTranferId()).get(1).contains(M.getServerId())){
+                transfers.get(M.getTranferId()).get(1).add(M.getServerId());
+                if (transfers.get(M.getTranferId()).get(1).size() == this.quorum){
+                    System.out.println("Your transfer of " + M.getAmount() + " to user " + M.getDestUserId() + " did not succed.");
+                }
+            }
         }
     }
 
@@ -128,13 +164,18 @@ public class UserFrontend {
     }
 
     // USER_ID:MESSAGE_ID:TRANSFER:ip:port:ammount:SPK|DPK|signature
-    public void sendTransfer(String userID, int amount, PublicKey sourceKey, int port) throws Exception{
+    public void sendTransfer(String destUserID, int amount, PublicKey sourceKey, int port) throws Exception{
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
-        PublicKey destinationPK = RSAKeyGenerator.readPublic("../Common/resources/U" + userID + "public.key");
-        TRANSFER_MESSAGE message = new TRANSFER_MESSAGE(User.getid(), this.messageID, "localhost", port, sourceKey, destinationPK, amount);
+        PublicKey destinationPK = RSAKeyGenerator.readPublic("../Common/resources/U" + destUserID + "public.key");
+        TRANSFER_MESSAGE message = new TRANSFER_MESSAGE(User.getid(), this.messageID, "localhost", port, sourceKey, destinationPK, amount, Integer.parseInt(destUserID));
         byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
         byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, privKey);
-        System.out.println(signedMessage.length);
+        
+        List<List<Integer>> newList = new ArrayList<>();
+        newList.add(new ArrayList<>());
+        newList.add(new ArrayList<>());
+        transfers.put(messageID, newList);
+
         for(List<Object> server : User.getServers() ){
             InetAddress ip = InetAddress.getByName((String) server.get(0)); 
             int serverPort = (int) server.get(1);        
@@ -145,6 +186,7 @@ public class UserFrontend {
         for (int i = 0; i < User.getServers().size(); i++){
             serverIds.add(i);
         }
+
         messagesHistory.add(messageID, signedMessage);
         this.messagesNotACKED.add(messageID, serverIds);
         this.messageID++;

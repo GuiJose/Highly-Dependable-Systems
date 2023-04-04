@@ -2,17 +2,15 @@ package hdl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.security.KeyFactory;
 import java.security.PublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.crypto.SecretKey;
-import hdl.RSAKeyGenerator;
+import hdl.messages.RESPONSE;
+import hdl.messages.RESPONSE_CHECK;
 import hdl.messages.TRANSFER_MESSAGE;
 
 public class Server extends Thread{
@@ -108,7 +106,9 @@ public class Server extends Thread{
         int[] array = {100, 0};
         if (!accounts.containsKey(pubKey)){
             accounts.put(pubKey, array);
-            perfectLink.sendMessage("localhost", port, "Account created!");
+            RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageId());
+            msg.setMessage("Account was created!");
+            perfectLink.sendMessage(ip, port, msg);
         }
     }
 
@@ -116,10 +116,13 @@ public class Server extends Thread{
         if(accounts.containsKey(pubKey)){
             int ammount = accounts.get(pubKey)[0];
             int writeTimeStamp = accounts.get(pubKey)[1];
-            perfectLink.sendMessage(ip, port, "Your balance is: " + ammount + " with timestamp: " + writeTimeStamp);
+            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageId(), ammount, writeTimeStamp);
+            perfectLink.sendMessage(ip, port, msg);
         }
         else{
-            perfectLink.sendMessage(ip, port, "Account does not exist!");
+            RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageId());
+            msg.setMessage("Account does not exist.");
+            perfectLink.sendMessage(ip, port, msg);
         }
     }
 

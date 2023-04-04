@@ -2,12 +2,12 @@ package hdl.messages;
 
 import java.io.Serializable;
 
-public class RESPONSE_USER implements Serializable{
+public class RESPONSE implements Serializable{
     private int serverId;
     private int messageID;
     private String message;
 
-    public RESPONSE_USER(int serverId, int messageID){
+    public RESPONSE(int serverId, int messageID){
         this.serverId = serverId;
         this.messageID = messageID;
     }

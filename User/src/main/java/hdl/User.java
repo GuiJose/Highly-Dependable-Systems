@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
-import hdl.RSAKeyGenerator;
 
 public class User extends Thread {
     private static int id;
@@ -28,7 +27,7 @@ public class User extends Thread {
         getServersAdd();
         RSAKeyGenerator.write(id,"u");
 
-        frontend = new UserFrontend(port);
+        frontend = new UserFrontend(port, Integer.parseInt(args[2]));
         User thread = new User();
         thread.start();
 

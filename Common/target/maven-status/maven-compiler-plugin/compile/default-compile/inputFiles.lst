@@ -1,10 +1,12 @@
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/RSAKeyGenerator.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/TRANSFER_MESSAGE.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/HMAC.java
+/home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/RESPONSE_TRANSFER.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/CREATE_MESSAGE.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/DigitalSignature.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/SymetricKey.java
-/home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/RESPONSE_USER.java
+/home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/RESPONSE_CHECK.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/ACK_MESSAGE.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/ByteArraysOperations.java
+/home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/RESPONSE.java
 /home/gui/Highly-Dependable-Systems/Common/src/main/java/hdl/messages/CHECK_MESSAGE.java

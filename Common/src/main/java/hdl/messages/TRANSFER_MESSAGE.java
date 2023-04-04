@@ -11,8 +11,9 @@ public class TRANSFER_MESSAGE implements Serializable{
     private int amount;
     private PublicKey SPK;
     private PublicKey DPK;
+    private int destUserId;
 
-    public TRANSFER_MESSAGE(int user_id, int message_id, String ip, int port, PublicKey SPK, PublicKey DPK, int amount) {
+    public TRANSFER_MESSAGE(int user_id, int message_id, String ip, int port, PublicKey SPK, PublicKey DPK, int amount, int destUserId) {
         this.user_id = user_id;
         this.message_id = message_id;
         this.ip = ip;
@@ -20,8 +21,12 @@ public class TRANSFER_MESSAGE implements Serializable{
         this.SPK = SPK;
         this.DPK = DPK;
         this.amount = amount;
+        this.destUserId = destUserId;
     }
-    public int getId(){
+    public int getDestUserId() {
+        return destUserId;
+    }
+    public int getUserId(){
         return this.user_id;
     }
     public int getMessageId(){
