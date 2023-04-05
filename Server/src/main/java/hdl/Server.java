@@ -119,7 +119,7 @@ public class Server extends Thread{
         if(accounts.containsKey(M.getKey())){
             int ammount = accounts.get(M.getKey())[0];
             int writeTimeStamp = accounts.get(M.getKey())[1];
-            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageId(), ammount, writeTimeStamp, M.getMessageId());
+            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageId(), ammount, writeTimeStamp, M.getMessageId(), M.isStrong());
             perfectLink.sendMessage(M.getIp(), M.getPort(), msg);
         }
         else{

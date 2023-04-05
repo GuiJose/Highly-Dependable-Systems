@@ -39,7 +39,14 @@ public class User extends Thread {
           System.out.println("Choose the operation:\n1. Check Balance\n2. Transfer Money");  
           String option = sc.nextLine();
           if(option.equals("1")){
-            frontend.sendCheck(port,pubKey);
+            System.out.println("Indicate the read mode: (0 for strong reads, 1 for weak reads)");
+            String option3 = sc.nextLine();
+            if (option3.equals("0")){
+              frontend.sendCheck(port, pubKey, true);
+            }
+            else{
+              frontend.sendCheck(port, pubKey, false);
+            }
           }
           else if( option.equals("2")){
             System.out.println("Indicate User and ammount:");

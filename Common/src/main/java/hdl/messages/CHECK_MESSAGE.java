@@ -9,13 +9,15 @@ public class CHECK_MESSAGE implements Serializable{
     private String ip;
     private int port;
     private PublicKey publicKey;
+    private boolean isStrong;
 
-    public CHECK_MESSAGE(int user_id, int message_id, String ip, int port, PublicKey publicKey) {
+    public CHECK_MESSAGE(int user_id, int message_id, String ip, int port, PublicKey publicKey, boolean isStrong) {
         this.user_id = user_id;
         this.message_id = message_id;
         this.ip = ip;
         this.port = port;
         this.publicKey = publicKey;
+        this.isStrong = isStrong;
     }
     public int getId(){
         return this.user_id;
@@ -31,5 +33,8 @@ public class CHECK_MESSAGE implements Serializable{
     }
     public PublicKey getKey(){
         return this.publicKey;
+    }
+    public boolean isStrong(){
+        return this.isStrong;
     }
 }
