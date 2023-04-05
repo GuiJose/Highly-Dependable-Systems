@@ -24,7 +24,7 @@ public class ServerIBFT {
     private int quorum;
     private int currentInstance = 0;
     private int writtenInstance = -1;
-    private Block block = new Block(); 
+    private Block block = new Block(Server.getid()); 
     private final Lock lock = new ReentrantLock();
 
 
@@ -138,7 +138,7 @@ public class ServerIBFT {
             }
             else{
                 System.out.println("Enviei Prepare adulterado.");
-                Block b2 = new Block();
+                Block b2 = new Block(Server.getid());
                 ibtfMessage message = new ibtfMessage("PREPARE", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b2);
                 byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
                 byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
@@ -167,7 +167,7 @@ public class ServerIBFT {
             }
             else{
                 System.out.println("Enviei Commit adulterado.");
-                Block b2 = new Block();
+                Block b2 = new Block(Server.getid());
                 ibtfMessage message = new ibtfMessage("COMMIT", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b2);
                 byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
                 byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
@@ -225,7 +225,7 @@ public class ServerIBFT {
     public synchronized void processBlock(Block block) throws Exception{
         for (List<Object> o : block.getOperations()){
             TRANSFER_MESSAGE msg = (TRANSFER_MESSAGE) o.get(0);
-            if (Server.transfer(msg.getSPK(), msg.getDPK(), msg.getAmount())){
+            if (Server.transfer(msg.getSPK(), msg.getDPK(), msg.getAmount(), block.getServerId())){
                 RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageId(), msg.getMessageId(), msg.getDestUserId(), true, msg.getAmount());
                 Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), message);
             }

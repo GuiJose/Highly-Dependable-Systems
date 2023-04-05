@@ -83,7 +83,7 @@ public class PerfectLink extends Thread{
                 if (DigitalSignature.VerifySignature(msg, signature, M.getKey())){
                     sendACKtoUser(M.getIp(), M.getPort(), M.getMessageId());
                     System.out.println("RECEBI PEDIDO DE CHECK");
-                    Server.checkBalance(M.getKey(), M.getPort(), M.getIp());
+                    Server.checkBalance(M);
                 }
             }
             else if (obj instanceof TRANSFER_MESSAGE){

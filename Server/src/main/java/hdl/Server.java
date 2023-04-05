@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
+import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.RESPONSE;
 import hdl.messages.RESPONSE_CHECK;
 import hdl.messages.TRANSFER_MESSAGE;
@@ -54,8 +55,10 @@ public class Server extends Thread{
             System.out.print("Enter '1' to print the ledger:");  
             int a = sc.nextInt();
             if (a == 1){
-                //blockchain.print();
                 System.out.println(accounts.size());
+                accounts.forEach((key, value) -> {
+                    System.out.println(value[0]);
+                });
             }  
         }
     }
@@ -112,17 +115,17 @@ public class Server extends Thread{
         }
     }
 
-    public static void checkBalance(PublicKey pubKey, int port, String ip) throws Exception{
-        if(accounts.containsKey(pubKey)){
-            int ammount = accounts.get(pubKey)[0];
-            int writeTimeStamp = accounts.get(pubKey)[1];
-            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageId(), ammount, writeTimeStamp);
-            perfectLink.sendMessage(ip, port, msg);
+    public static void checkBalance(CHECK_MESSAGE M) throws Exception{
+        if(accounts.containsKey(M.getKey())){
+            int ammount = accounts.get(M.getKey())[0];
+            int writeTimeStamp = accounts.get(M.getKey())[1];
+            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageId(), ammount, writeTimeStamp, M.getMessageId());
+            perfectLink.sendMessage(M.getIp(), M.getPort(), msg);
         }
         else{
             RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageId());
             msg.setMessage("Account does not exist.");
-            perfectLink.sendMessage(ip, port, msg);
+            perfectLink.sendMessage(M.getIp(), M.getPort(), msg);
         }
     }
 
@@ -146,16 +149,28 @@ public class Server extends Thread{
         return true;
     }
 
-    public static boolean transfer(PublicKey sourceKey, PublicKey destKey, int amount){
+    public static boolean transfer(PublicKey sourceKey, PublicKey destKey, int amount, int blockCreator) throws Exception{
         if (validateTransfer(sourceKey, destKey, amount)){
             accounts.get(sourceKey)[0] -= (amount+1);
             accounts.get(sourceKey)[1]++;
             accounts.get(destKey)[0] += (amount);
             accounts.get(destKey)[1]++;
+            payCommission(blockCreator);
             return true;
         }
         else{
             return false;
         }
+    }
+
+    public static void payCommission(int blockCreator) throws Exception{
+        String keyPath = "../Common/resources/S" + blockCreator + "public.key";
+        PublicKey key = RSAKeyGenerator.readPublic(keyPath);
+        int[] array = {100, 0};
+        if (!accounts.containsKey(key)){
+            accounts.put(key, array);
+        }
+        accounts.get(key)[0] += 1;
+        accounts.get(key)[1] += 1;
     }
 }
