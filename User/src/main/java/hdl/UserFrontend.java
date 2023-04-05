@@ -135,7 +135,7 @@ public class UserFrontend {
                 int mostCommonTimestamp = mostCommonTimestamp(M);
                 int mostCommonBalance = mostCommonBalance(M, mostCommonTimestamp);
                 this.readTimeStamp = mostCommonBalance;
-                System.out.println("Your balance is: " + mostCommonBalance);                
+                System.out.println("Your balance is: " + mostCommonBalance + " with timestamp:" + this.readTimeStamp);                
             }
         }
     }
