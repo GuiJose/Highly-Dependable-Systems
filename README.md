@@ -25,7 +25,7 @@ $ ./InitSystem.sh <NServers> <NByzantineServers> <NUsers>
 
 ### Example Parameters
 ```
-./ServerInit.bash 7 2 0
+./ServerInit.bash 7 2 2
 ```
 
 ### In order to run the tests, you can simply execute:
