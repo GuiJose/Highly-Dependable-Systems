@@ -28,7 +28,7 @@ $ ./InitSystem.sh <NServers> <NByzantineServers> <NUsers>
 ./ServerInit.bash 7 2 0
 ```
 
-In order to run the tests, you can simply execute:
+### In order to run the tests, you can simply execute:
 
 ```shell
 $ mvn clean install 
