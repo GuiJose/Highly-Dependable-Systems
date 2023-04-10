@@ -6,12 +6,14 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
 import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.RESPONSE;
 import hdl.messages.RESPONSE_CHECK;
+import hdl.messages.RESPONSE_CREATE;
 import hdl.messages.TRANSFER_MESSAGE;
 
 public class Server extends Thread{
@@ -44,22 +46,18 @@ public class Server extends Thread{
 
         if (args[1].equals("1")){
             isBizantine = true;
-        }        
+        }
+        
         ibtf = new ServerIBFT(blockchain, numServers);
         perfectLink = new PerfectLink((int)(addresses.get(id).get(1)), ibtf, numServers);
         Server thread = new Server();
         thread.start();
 
-        while(true){
-            Scanner sc= new Scanner(System.in); 
-            System.out.print("Enter '1' to print the ledger:");  
-            int a = sc.nextInt();
-            if (a == 1){
-                System.out.println(accounts.size());
-                accounts.forEach((key, value) -> {
-                    System.out.println(value[0]);
-                });
-            }  
+        while (true){
+            Scanner sc= new Scanner(System.in);
+            System.out.println("Press '1' to print the blockchain: ");  
+            String option = sc.nextLine();
+            if(option.equals("1")){blockchain.printBlockchain();}
         }
     }
 
@@ -105,27 +103,50 @@ public class Server extends Thread{
         return currentLeader;
     }
 
+    public static ConcurrentHashMap<PublicKey, int[]> getAccounts(){
+        return accounts;
+    }
+
+    public static ServerIBFT getServerIBFT(){
+        return ibtf;
+    }
+
+    public static Blockchain getBlockchain(){
+        return blockchain;
+    }
+
     public static void createAccount(PublicKey pubKey, int port, String ip) throws Exception{
         int[] array = {100, 0};
         if (!accounts.containsKey(pubKey)){
             accounts.put(pubKey, array);
-            RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageId());
-            msg.setMessage("Account was created!");
-            perfectLink.sendMessage(ip, port, msg);
+            RESPONSE_CREATE msg = new RESPONSE_CREATE(Server.getid(), perfectLink.getMessageToUsersId(), true);
+            perfectLink.sendMessageToUser(ip, port, msg);
+        }
+        else{
+            RESPONSE_CREATE msg = new RESPONSE_CREATE(Server.getid(), perfectLink.getMessageToUsersId(), false);
+            perfectLink.sendMessageToUser(ip, port, msg);
         }
     }
 
     public static void checkBalance(CHECK_MESSAGE M) throws Exception{
         if(accounts.containsKey(M.getKey())){
-            int ammount = accounts.get(M.getKey())[0];
-            int writeTimeStamp = accounts.get(M.getKey())[1];
-            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageId(), ammount, writeTimeStamp, M.getMessageId(), M.isStrong());
-            perfectLink.sendMessage(M.getIp(), M.getPort(), msg);
+            Random random = new Random();
+            if (isBizantine){
+                System.out.println("Sent check response tampered because i'm bizantine.");
+                RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), random.nextInt(200), random.nextInt(200), M.getMessageId(), M.isStrong());
+                perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+            }
+            else{
+                int ammount = accounts.get(M.getKey())[0];
+                int writeTimeStamp = accounts.get(M.getKey())[1];
+                RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), ammount, writeTimeStamp, M.getMessageId(), M.isStrong());
+                perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+            }
         }
         else{
-            RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageId());
+            RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageToUsersId());
             msg.setMessage("Account does not exist.");
-            perfectLink.sendMessage(M.getIp(), M.getPort(), msg);
+            perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
         }
     }
 

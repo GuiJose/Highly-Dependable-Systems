@@ -12,12 +12,12 @@ public class Blockchain {
         blocks.add(block);
     }
 
-    /*public synchronized void print(){
-        System.out.println("Blockchain:");
-        for (String word : wordsList){
-            System.out.print(word);
-            System.out.print("====>");
+    public synchronized void printBlockchain(){
+        for(Block b : blocks){
+            System.out.print("[");
+            b.printBlock(b);
+            System.out.print("] =====> ");
         }
         System.out.print("\n");
-    }*/
+    }
 }

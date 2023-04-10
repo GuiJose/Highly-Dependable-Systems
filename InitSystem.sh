@@ -39,7 +39,7 @@ done
 initialPort=11000
 count=1
 
-sleep 3
+sleep 10
 
 while [ $count -le $3 ]; do
   id=$(printf "%d" $((count-1)))

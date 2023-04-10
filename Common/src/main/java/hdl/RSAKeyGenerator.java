@@ -62,25 +62,9 @@ public class RSAKeyGenerator {
             encoded = new byte[fis.available()];
             fis.read(encoded);
         }
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");  
+        
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
         return keyFactory.generatePrivate(keySpec);
     }
-
-
-    public static byte[] encrypt(byte[] message, Key key) throws Exception {
-        Cipher cipher= Cipher.getInstance("RSA"); 
-        cipher.init(Cipher.ENCRYPT_MODE,key);
-        return cipher.doFinal(message);
-    }
-
-
-    public static byte[] decrypt(byte[] cipherText, Key key) throws Exception{
-        Cipher cipher = Cipher.getInstance("RSA");
-        cipher.init(Cipher.DECRYPT_MODE,key);
-        byte[] result = cipher.doFinal(cipherText);
-        return result;
-    } 
-
 }

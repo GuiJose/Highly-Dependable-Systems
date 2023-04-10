@@ -9,15 +9,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import hdl.messages.RESPONSE_TRANSFER;
 import hdl.messages.TRANSFER_MESSAGE;
 import hdl.messages.ibtfMessage;
 
 public class ServerIBFT {
-    private List<String[]> requests = new ArrayList<>();
     private List<List<Object>> instances = new ArrayList<>();
     //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], block, hora que começou, estado]
     private Blockchain blockchain; 
@@ -25,8 +22,6 @@ public class ServerIBFT {
     private int currentInstance = 0;
     private int writtenInstance = -1;
     private Block block = new Block(Server.getid()); 
-    private final Lock lock = new ReentrantLock();
-
 
     public ServerIBFT(Blockchain b, int numServers) throws Exception{
         this.blockchain = b;
@@ -52,23 +47,22 @@ public class ServerIBFT {
 
     public synchronized void addOperation(TRANSFER_MESSAGE msg, byte[] signature) throws Exception{
         this.block.appendOperation(msg, signature);
-        System.out.println("APPEND OP");
+        System.out.println("I appended an operation to the block.");
         if (this.block.getSize() == 3) {
             start(this.block);
             this.block.clearBlock();
         }
     }
 
-    // SERVER_ID MESSAGE_ID PREPREPARE lambda block
     public synchronized void receivedPrePrepare(ibtfMessage M) throws Exception{
-        System.out.println("recebi preprepare");
+        System.out.println("Received a Preprepare.");
         if (M.getServerId() != Server.getCurrentLeader()){
-            System.out.println("Recebi um preprepare de um bizantino.");
+            System.out.println("Received a Preprepare from a bizantine server.");
             return;
         }
 
         if (!Server.validateBlock(M.getBlock())){
-            System.out.println("Recebi um preprepare, mas o bloco tava adulterado.");
+            System.out.println("Received a Preprepare, but the block was tampered. The leader is probably bizantine");
             return;
         }
 
@@ -82,10 +76,8 @@ public class ServerIBFT {
         }
     }
 
-    //[number da instance, [lista-prepares-recebidos], [lista-commits-recebidos], block, hora que começou, estado] 0 1 2
-    // SERVER_ID MESSAGE_ID PREPARE lambda value
     public synchronized void receivedPrepare(ibtfMessage M) throws Exception{
-        System.out.println("recebi prepare");
+        System.out.println("Received a Prepare.");
         for (List<Object> instance : instances){
             if (instance.get(0).equals(M.getLambda())){
                 if ((int) instance.get(5) == 0){
@@ -105,7 +97,7 @@ public class ServerIBFT {
     }
 
     public synchronized void receivedCommit(ibtfMessage M) throws Exception{
-        System.out.println("recebi commit");
+        System.out.println("Received a Commit.");
         for (List<Object> instance : instances){
             if (instance.get(0).equals(M.getLambda())){
                 if ((int) instance.get(5) == 0){
@@ -125,7 +117,6 @@ public class ServerIBFT {
         instances.add(Arrays.asList(M.getLambda(), new ArrayList<>(), newList, M.getBlock(), LocalTime.now(), 0));
     }
 
-    // SERVER_ID MESSAGE_ID PREPARE lambda value
     public synchronized void sendPrepare(Block b, int lambda) throws Exception{
         String keyPath = "resources/S" + Server.getid() + "private.key";
         PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
@@ -133,11 +124,11 @@ public class ServerIBFT {
             Random random = new Random();
             int randomNumber = random.nextInt(2);
             if (randomNumber == 0){
-                System.out.println("Não enviei Prepare porque sou bizantino.");
+                System.out.println("I did not send the Prepare because i'm bizantine.");
                 return;
             }
             else{
-                System.out.println("Enviei Prepare adulterado.");
+                System.out.println("I've sent a tampered Prepare because i'm bizantine.");
                 Block b2 = new Block(Server.getid());
                 ibtfMessage message = new ibtfMessage("PREPARE", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b2);
                 byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
@@ -146,7 +137,7 @@ public class ServerIBFT {
             }
         }
         else {
-            System.out.println("Enviei Prepare");
+            System.out.println("I've sent a prepare");
             ibtfMessage message = new ibtfMessage("PREPARE", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b);
             byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
             byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
@@ -154,7 +145,6 @@ public class ServerIBFT {
         }
     }
 
-    // SERVER_ID MESSAGE_ID COMMIT lambda value
     public synchronized void sendCommit(Block b, int lambda) throws Exception{
         String keyPath = "resources/S" + Server.getid() + "private.key";
         PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
@@ -162,11 +152,11 @@ public class ServerIBFT {
             Random random = new Random();
             int randomNumber = random.nextInt(2);
             if (randomNumber == 0){
-                System.out.println("Não enviei Commit porque sou bizantino.");
+                System.out.println("I did not send a Commit because i'm bizantine.");
                 return;
             }
             else{
-                System.out.println("Enviei Commit adulterado.");
+                System.out.println("I've sent a tampered Commit.");
                 Block b2 = new Block(Server.getid());
                 ibtfMessage message = new ibtfMessage("COMMIT", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b2);
                 byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
@@ -175,7 +165,7 @@ public class ServerIBFT {
             }
         }
         else {
-            System.out.println("Enviei Commit");
+            System.out.println("I've sent a Commit.");
             ibtfMessage message = new ibtfMessage("COMMIT", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b);
             byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
             byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
@@ -183,7 +173,6 @@ public class ServerIBFT {
         }
     }
 
-    // SERVER_ID MESSAGE_ID PREPREPARE lambda value
     public synchronized void start(Block b) throws Exception{
         System.out.println("Fiz start");
         String keyPath = "resources/S" + Server.getid() + "private.key";
@@ -226,12 +215,12 @@ public class ServerIBFT {
         for (List<Object> o : block.getOperations()){
             TRANSFER_MESSAGE msg = (TRANSFER_MESSAGE) o.get(0);
             if (Server.transfer(msg.getSPK(), msg.getDPK(), msg.getAmount(), block.getServerId())){
-                RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageId(), msg.getMessageId(), msg.getDestUserId(), true, msg.getAmount());
-                Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), message);
+                RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageToUsersId(), msg.getMessageId(), msg.getDestUserId(), true, msg.getAmount());
+                Server.getPerfectLink().sendMessageToUser(msg.getIp(), msg.getPort(), message);
             }
             else{
-                RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageId(), msg.getMessageId(), msg.getDestUserId(), false, msg.getAmount());
-                Server.getPerfectLink().sendMessage(msg.getIp(), msg.getPort(), message);
+                RESPONSE_TRANSFER message = new RESPONSE_TRANSFER(Server.getid(), Server.getPerfectLink().getMessageToUsersId(), msg.getMessageId(), msg.getDestUserId(), false, msg.getAmount());
+                Server.getPerfectLink().sendMessageToUser(msg.getIp(), msg.getPort(), message);
             }
 
         }

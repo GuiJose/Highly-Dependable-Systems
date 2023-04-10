@@ -11,10 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 
+import hdl.messages.ACKUSER_MESSAGE;
 import hdl.messages.ACK_MESSAGE;
 import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.CREATE_MESSAGE;
+import hdl.messages.RESPONSE;
 import hdl.messages.TRANSFER_MESSAGE;
 import hdl.messages.ibtfMessage;
 
@@ -22,6 +25,13 @@ public class PerfectLink extends Thread{
     private DatagramSocket receiverSocket;
     private DatagramSocket senderSocket;
     private ServerIBFT serverIbtf;
+
+    private ConcurrentHashMap<Integer, List<Integer>> receivedMessagesFromUsers = new ConcurrentHashMap<>();
+    private List<List<Object>> messagesToUsers = new ArrayList<>();
+        //[[ip, port, byte[] da mensagem, message_ID]]
+    private int messageToUsersId = 0;
+    private List<Integer> messagesACKEDFromUsers = new ArrayList<>(); 
+
     private List<List<Integer>> receivedMessages;
     private List<List<Integer>> messagesNotACKED;
     private List<byte[]> messagesHistory;
@@ -74,31 +84,69 @@ public class PerfectLink extends Thread{
                 CREATE_MESSAGE M = (CREATE_MESSAGE) obj;
                 if (DigitalSignature.VerifySignature(msg, signature, M.getKey())){
                     sendACKtoUser(M.getIp(), M.getPort(), M.getMessageId());
-                    System.out.println("RECEBI PEDIDO DE BOOT");
-                    Server.createAccount(M.getKey(), M.getPort(), M.getIp());
+                    if (receivedMessagesFromUsers.containsKey(M.getId())){
+                        if(!receivedMessagesFromUsers.get(M.getId()).contains(M.getMessageId())){
+                            System.out.println("Received a CREATE_ACCOUNT request.");
+                            Server.createAccount(M.getKey(), M.getPort(), M.getIp());
+                        }
+                    }
+                    else{
+                        System.out.println("Received a CREATE_ACCOUNT request.");
+                        Server.createAccount(M.getKey(), M.getPort(), M.getIp());
+                    }
+                    receivedMessageFromUsers(M.getId(), M.getMessageId());
                 }
             }
             else if (obj instanceof CHECK_MESSAGE){
                 CHECK_MESSAGE M = (CHECK_MESSAGE) obj;
                 if (DigitalSignature.VerifySignature(msg, signature, M.getKey())){
                     sendACKtoUser(M.getIp(), M.getPort(), M.getMessageId());
-                    System.out.println("RECEBI PEDIDO DE CHECK");
-                    Server.checkBalance(M);
+                    if (receivedMessagesFromUsers.containsKey(M.getId())){
+                        if(!receivedMessagesFromUsers.get(M.getId()).contains(M.getMessageId())){
+                            System.out.println("Received a CHECK request.");
+                            Server.checkBalance(M);
+                        }      
+                    }
+                    else {
+                        System.out.println("Received a CHECK request.");
+                        Server.checkBalance(M);
+                    }
+                    receivedMessageFromUsers(M.getId(), M.getMessageId());
                 }
             }
             else if (obj instanceof TRANSFER_MESSAGE){
                 TRANSFER_MESSAGE M = (TRANSFER_MESSAGE) obj;
                 if (DigitalSignature.VerifySignature(msg, signature, M.getSPK())){
                     sendACKtoUser(M.getIp(), M.getPort(), M.getMessageId());
-                    System.out.println("RECEBI PEDIDO DE TRANSFER");
-                    if (Server.getIsMain()){
-                        if (Server.validateTransfer(M.getSPK(), M.getDPK(), M.getAmount())){
-                            serverIbtf.addOperation(M, signature);
-                        }
-                        else{
-                            sendMessage(M.getIp(), M.getPort(), "Error: Operação inválida.");
+                    if (receivedMessagesFromUsers.containsKey(M.getUserId())){
+                        if(!receivedMessagesFromUsers.get(M.getUserId()).contains(M.getMessageId())){
+                            System.out.println("Received a TRANSFER request.");
+                            if (Server.getIsMain()){
+                                if (Server.validateTransfer(M.getSPK(), M.getDPK(), M.getAmount())){
+                                    serverIbtf.addOperation(M, signature);
+                                }
+                                else{
+                                    RESPONSE message = new RESPONSE(Server.getid(), this.messageToUsersId);
+                                    message.setMessage("Error: Invalid Operation.");
+                                    sendMessageToUser(M.getIp(), M.getPort(), message);
+                                }
+                            }
                         }
                     }
+                    else{
+                        System.out.println("Received a TRANSFER request.");
+                        if (Server.getIsMain()){
+                            if (Server.validateTransfer(M.getSPK(), M.getDPK(), M.getAmount())){
+                                serverIbtf.addOperation(M, signature);
+                            }
+                            else{
+                                RESPONSE message = new RESPONSE(Server.getid(), this.messageToUsersId);
+                                message.setMessage("Error: Invalid Operation.");
+                                sendMessageToUser(M.getIp(), M.getPort(), message);
+                            }
+                        }
+                    }
+                    receivedMessageFromUsers(M.getUserId(), M.getMessageId());
                 }
             }
             else if (obj instanceof ibtfMessage){
@@ -107,16 +155,18 @@ public class PerfectLink extends Thread{
                 PublicKey key = RSAKeyGenerator.readPublic(keyPath);
                 if (DigitalSignature.VerifySignature(msg, signature, key)){
                     sendACK(M.getServerId(), M.getMessageId());
-                    switch (M.getType()){
-                        case "PREPREPARE":
-                            serverIbtf.receivedPrePrepare(M);
-                            break;
-                        case "PREPARE":
-                            serverIbtf.receivedPrepare(M);
-                            break;
-                        case "COMMIT":
-                            serverIbtf.receivedCommit(M);
-                            break;
+                    if (!receivedMessage(M.getServerId(), M.getMessageId())){
+                        switch (M.getType()){
+                            case "PREPREPARE":
+                                serverIbtf.receivedPrePrepare(M);
+                                break;
+                            case "PREPARE":
+                                serverIbtf.receivedPrepare(M);
+                                break;
+                            case "COMMIT":
+                                serverIbtf.receivedCommit(M);
+                                break;
+                        }
                     }
                 } 
             }
@@ -128,16 +178,39 @@ public class PerfectLink extends Thread{
                     receivedACK(M.getId(), M.getMessageACKED());
                 }
             }
+            else if (obj instanceof ACKUSER_MESSAGE){
+                ACKUSER_MESSAGE M = (ACKUSER_MESSAGE) obj;
+                String keyPath = "../Common/resources/U" + M.getId() + "public.key";
+                PublicKey key = RSAKeyGenerator.readPublic(keyPath);
+                if (DigitalSignature.VerifySignature(msg, signature, key)){
+                    receivedACKFromUser(M.getMessageACKED());
+                }
+            }
         }
     }
 
-    public synchronized void receivedACK(int serverid, int messageACKED){
-        messagesNotACKED.get(serverid).remove((Object)messageACKED);
+    public synchronized void receivedACKFromUser(int messageACKED){
+        messagesACKEDFromUsers.add(messageACKED);
     }
 
-    public synchronized boolean receivedMessage(int serverId, int msgID){
-        if (!receivedMessages.get(serverId).contains(msgID)){
-            receivedMessages.get(serverId).add(msgID);
+    public synchronized void receivedACK(int serverId, int messageACKED){
+        messagesNotACKED.get(serverId).remove((Object)messageACKED);
+    }
+
+    public synchronized void receivedMessageFromUsers(int userId, int msgId){
+        if (receivedMessagesFromUsers.containsKey(userId)){
+            receivedMessagesFromUsers.get(userId).add(msgId);
+        }
+        else{
+            List<Integer> newList = new ArrayList<>();
+            newList.add(msgId);
+            receivedMessagesFromUsers.put(userId, newList);            
+        }
+    }
+
+    public synchronized boolean receivedMessage(int serverId, int msgId){
+        if (!receivedMessages.get(serverId).contains(msgId)){
+            receivedMessages.get(serverId).add(msgId);
             return false;
         }
         return true;
@@ -184,9 +257,19 @@ public class PerfectLink extends Thread{
                 this.senderSocket.send(packet);
             }
         }
+
+        for (List<Object> o: messagesToUsers){
+            if(!messagesACKEDFromUsers.contains(o.get(3))){
+                InetAddress ip = InetAddress.getByName((String) o.get(0));
+                int port = (int)o.get(1);
+                byte[] buffer = (byte[]) o.get(2);
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length, ip, port);
+                this.senderSocket.send(packet);
+            }
+        }
     }
 
-    public void sendMessage(String address, int port, Object message) throws Exception{
+    public void sendMessageToUser(String address, int port, Object message) throws Exception{
         String keyPath = "resources/S" + Server.getid() + "private.key";
         PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
         byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
@@ -194,7 +277,15 @@ public class PerfectLink extends Thread{
     
         InetAddress ip = InetAddress.getByName(address);     
         DatagramPacket packet = new DatagramPacket(signedMessage, signedMessage.length, ip, port);
-        this.messageID++;
+        
+        List<Object> newList = new ArrayList<>();
+        newList.add(address);
+        newList.add(port); 
+        newList.add(signedMessage); 
+        newList.add(this.messageToUsersId); 
+
+        this.messagesToUsers.add(newList);
+        this.messageToUsersId++;
         this.senderSocket.send(packet);
     }
 
@@ -214,5 +305,8 @@ public class PerfectLink extends Thread{
 
     public int getMessageId(){
         return this.messageID;
+    }
+    public int getMessageToUsersId(){
+        return this.messageToUsersId;
     }
 }

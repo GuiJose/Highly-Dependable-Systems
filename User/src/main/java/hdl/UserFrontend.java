@@ -16,11 +16,13 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 
+import hdl.messages.ACKUSER_MESSAGE;
 import hdl.messages.ACK_MESSAGE;
 import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.CREATE_MESSAGE;
 import hdl.messages.RESPONSE;
 import hdl.messages.RESPONSE_CHECK;
+import hdl.messages.RESPONSE_CREATE;
 import hdl.messages.RESPONSE_TRANSFER;
 import hdl.messages.TRANSFER_MESSAGE;
 
@@ -28,20 +30,32 @@ public class UserFrontend {
     private ConcurrentHashMap<Integer, List<List<Integer>>> transfers = new ConcurrentHashMap<>();
                             //transferId [[ids de servers sucesso], [ids de servers onde n teve sucesso]]
     private ConcurrentHashMap<Integer, List<List<Integer>>> checks = new ConcurrentHashMap<>();
-                            //checkId  [[server_id, timestamp, balance]]
+                            //checkId  [ [state] [server_id, timestamp, balance]]
+    private ConcurrentHashMap<Integer, List<List<Integer>>> creates = new ConcurrentHashMap<>();
+                            //createsId [[ids de servers sucesso], [ids de servers onde n teve sucesso]]
     private DatagramSocket senderSocket;
     private DatagramSocket receiverSocket;
     private int messageID = 0;
     private List<List<Integer>> messagesNotACKED = new ArrayList<>();
     private List<byte[]> messagesHistory = new ArrayList<>();
     private int quorum;
+    private int readQuorum;
     private int readTimeStamp = 0;
-    
+
+    private List<List<Integer>> messagesReceived = new ArrayList<>();
+
+
     public UserFrontend(int port, int numServers) throws Exception{
         this.senderSocket = new DatagramSocket();
         this.receiverSocket = new DatagramSocket(port);
         int byzantineServersSuported = (int) Math.floor((numServers-1)/3);
         this.quorum = 2 * byzantineServersSuported + 1;
+        this.readQuorum = byzantineServersSuported + 1;
+
+        for (int i = 0; i < numServers; i++) {
+            List<Integer> l = new ArrayList<>();
+            messagesReceived.add(l);
+        }
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -86,7 +100,22 @@ public class UserFrontend {
                 String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
                 PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
                 if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
-                    System.out.println("Received message from server " + M.getServerId() + " with message: " + M.getMessage());
+                    sendAck(M.getServerId(), M.getMessageId());
+                    if (!receivedMessage(M.getServerId(), M.getMessageId())){
+                        System.out.println("Received message from server " + M.getServerId() + " with message: " + M.getMessage());
+                    }
+                }
+            }
+
+            else if (obj instanceof RESPONSE_CREATE){
+                RESPONSE_CREATE M = (RESPONSE_CREATE) obj;
+                String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
+                PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
+                if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
+                    sendAck(M.getServerId(), M.getMessageId());
+                    if (!receivedMessage(M.getServerId(), M.getMessageId())){
+                        receivedResponseCreate(M);
+                    }
                 }
             }
 
@@ -95,7 +124,10 @@ public class UserFrontend {
                 String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
                 PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
                 if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
-                    receivedResponseTransfer(M);
+                    sendAck(M.getServerId(), M.getMessageId());
+                    if (!receivedMessage(M.getServerId(), M.getMessageId())){
+                        receivedResponseTransfer(M);
+                    }
                 }
             }
 
@@ -104,13 +136,42 @@ public class UserFrontend {
                 String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
                 PublicKey serverKey = RSAKeyGenerator.readPublic(keyPath);
                 if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
-                    if (M.getIsStrong()){receivedResponseCheck(M);}
-                    else{System.out.println("RECEBI UM CHECK FRACO");}
+                    sendAck(M.getServerId(), M.getMessageId());
+                    if (!receivedMessage(M.getServerId(), M.getMessageId())){
+                        if (M.getIsStrong()){receivedResponseCheck(M);}
+                        else{System.out.println("RECEBI UM CHECK FRACO");}
+                    }
                 }
             }
-
             packet.setLength(buffer.length); 
         }
+    }
+
+    public synchronized void receivedResponseCreate(RESPONSE_CREATE M){
+        if (M.getSucceded()){
+            if (!transfers.get(0).get(0).contains(M.getServerId())){
+                transfers.get(0).get(0).add(M.getServerId());
+                if (transfers.get(0).get(0).size() == this.quorum){
+                    System.out.println("Your account was created!");
+                }
+            }
+        }
+        else{
+            if (!transfers.get(0).get(1).contains(M.getServerId())){
+                transfers.get(0).get(1).add(M.getServerId());
+                if (transfers.get(0).get(1).size() == this.quorum){
+                    System.out.println("Your account was not created!");
+                }
+            }
+        }
+    }
+
+    public synchronized boolean receivedMessage(int serverId, int msgId){
+            if (!messagesReceived.get(serverId).contains(msgId)){
+                messagesReceived.get(serverId).add(msgId);
+                return false;
+            }
+            return true;
     }
 
     public synchronized void receivedResponseCheck(RESPONSE_CHECK M){
@@ -126,14 +187,16 @@ public class UserFrontend {
             newList.add(M.getBalance());
             checks.get(M.getCheckId()).add(newList);
 
-            if (checks.get(M.getCheckId()).size() == quorum){
-                Map<Integer, Integer> frequencyMap = new HashMap<>();
-
-                for (List<Integer> innerList : checks.get(M.getCheckId())) {
-                    frequencyMap.put(innerList.get(1), frequencyMap.getOrDefault(innerList.get(1), 0) + 1);
-                }
+            if (checks.get(M.getCheckId()).size() >= quorum && checks.get(M.getCheckId()).get(0).get(0) == 0){
                 int mostCommonTimestamp = mostCommonTimestamp(M);
                 int mostCommonBalance = mostCommonBalance(M, mostCommonTimestamp);
+                
+                if (mostCommonTimestamp == -1 || mostCommonBalance == -1){
+                    return;
+                }
+                
+                checks.get(M.getCheckId()).get(0).set(0, 1);
+                
                 this.readTimeStamp = mostCommonTimestamp;
                 System.out.println("Your balance is: " + mostCommonBalance + " with timestamp: " + this.readTimeStamp);                
             }
@@ -144,7 +207,9 @@ public class UserFrontend {
         Map<Integer, Integer> frequencyMap = new HashMap<>();
 
         for (List<Integer> innerList : checks.get(M.getCheckId())) {
-            frequencyMap.put(innerList.get(1), frequencyMap.getOrDefault(innerList.get(1), 0) + 1);
+            if (innerList.size() == 3 ){
+                frequencyMap.put(innerList.get(1), frequencyMap.getOrDefault(innerList.get(1), 0) + 1);
+            }
         }
     
         int mostCommonTimestamp = 0;
@@ -159,15 +224,22 @@ public class UserFrontend {
             highestFrequency = frequency;
           }
         }
-        return mostCommonTimestamp;
+        if (highestFrequency >= this.readQuorum){
+            return mostCommonTimestamp;
+        }
+        else{
+            return -1;
+        }
     }
 
     public synchronized int mostCommonBalance(RESPONSE_CHECK M, int timestamp){
         Map<Integer, Integer> frequencyMap = new HashMap<>();
 
         for (List<Integer> innerList : checks.get(M.getCheckId())) {
-            if (innerList.get(1) == timestamp){
-                frequencyMap.put(innerList.get(2), frequencyMap.getOrDefault(innerList.get(2), 0) + 1);
+            if (innerList.size() == 3){
+                if (innerList.get(1) == timestamp){
+                    frequencyMap.put(innerList.get(2), frequencyMap.getOrDefault(innerList.get(2), 0) + 1);
+                }
             }
         }
     
@@ -183,7 +255,23 @@ public class UserFrontend {
             highestFrequency = frequency;
           }
         }
-        return mostCommonBalance;
+        if (highestFrequency >= this.readQuorum){
+            return mostCommonBalance;
+        }
+        else{
+            return -1;
+        }
+    }
+
+    public synchronized void sendAck(int serverId, int messageACKED) throws Exception{
+        PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
+        ACKUSER_MESSAGE message = new ACKUSER_MESSAGE(User.getid(), this.messageID, messageACKED);
+        InetAddress ip = InetAddress.getByName((String) User.getServers().get(serverId).get(0)); 
+        int leaderPort = (int) User.getServers().get(serverId).get(1);
+        byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
+        byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, privKey);
+        DatagramPacket packet = new DatagramPacket(signedMessage, signedMessage.length, ip, leaderPort);
+        this.senderSocket.send(packet);
     }
 
     public synchronized void receivedResponseTransfer(RESPONSE_TRANSFER M){
@@ -209,7 +297,6 @@ public class UserFrontend {
         messagesNotACKED.get(messageACKED).remove(Integer.valueOf(serverid));
     }
 
-    //MessageID:CHECK:ip:port:Assinatura
     public void sendCheck(int port, PublicKey key, Boolean isStrong) throws Exception{
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
         CHECK_MESSAGE message = new CHECK_MESSAGE(User.getid(), this.messageID, "localhost", port, key, isStrong);
@@ -218,6 +305,9 @@ public class UserFrontend {
 
         if (isStrong){
             List<List<Integer>> newList = new ArrayList<>();
+            List<Integer> newList2 = new ArrayList<>(); 
+            newList2.add(0);
+            newList.add(newList2);
             checks.put(messageID, newList);
             for(List<Object> server : User.getServers()){
                 InetAddress ip = InetAddress.getByName((String) server.get(0)); 
@@ -248,14 +338,17 @@ public class UserFrontend {
         this.messageID++;
     }
 
-    //BOOT:ip:port:pubkey:Assinatura
-
     public void sendCreateAccount(int port, PublicKey key) throws Exception{
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
         CREATE_MESSAGE message = new CREATE_MESSAGE(User.getid(), this.messageID, "localhost", port, key);
         
         byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
         byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, privKey);
+
+        List<List<Integer>> newList = new ArrayList<>();
+        newList.add(new ArrayList<>());
+        newList.add(new ArrayList<>());
+        transfers.put(0, newList);
 
         for(List<Object> server : User.getServers() ){
             InetAddress ip = InetAddress.getByName((String) server.get(0)); 
@@ -272,7 +365,6 @@ public class UserFrontend {
         this.messageID++;
     }
 
-    // USER_ID:MESSAGE_ID:TRANSFER:ip:port:ammount:SPK|DPK|signature
     public void sendTransfer(String destUserID, int amount, PublicKey sourceKey, int port) throws Exception{
         PrivateKey privKey = RSAKeyGenerator.readPrivate("resources/U" + User.getid() + "private.key");
         PublicKey destinationPK = RSAKeyGenerator.readPublic("../Common/resources/U" + destUserID + "public.key");

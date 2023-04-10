@@ -33,4 +33,13 @@ public class Block implements Serializable{
     public List<List<Object>> getOperations(){
         return operations;
     }
+
+    public void printBlock(Block b){
+        for (List<Object> o : operations){
+            TRANSFER_MESSAGE msg = (TRANSFER_MESSAGE) o.get(0);
+            System.out.print("(T:");
+            System.out.print(msg.getUserId() + ":" + msg.getDestUserId() + ":" + msg.getAmount());
+            System.out.print(") ");
+        }
+    } 
 }

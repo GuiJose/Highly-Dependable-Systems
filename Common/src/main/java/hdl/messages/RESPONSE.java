@@ -14,7 +14,7 @@ public class RESPONSE implements Serializable{
     public int getServerId(){
         return this.serverId;
     } 
-    public int getMessageId(int message_id){
+    public int getMessageId(){
         return this.messageID;
     }
     public String getMessage(){
