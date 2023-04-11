@@ -13,6 +13,7 @@ public class User extends Thread {
     private static int port;
     private static List<List<Object>> ServerAddresses = new ArrayList<>();
     private static UserFrontend frontend;
+    private static PublicKey pubKey;
 
     public void run(){
         try {
@@ -31,11 +32,12 @@ public class User extends Thread {
         User thread = new User();
         thread.start();
 
-        PublicKey pubKey = RSAKeyGenerator.readPublic("../Common/resources/U" + id + "public.key"); 
+        PublicKey pubKey2 = RSAKeyGenerator.readPublic("../Common/resources/U" + id + "public.key"); 
+        pubKey = pubKey2;
         frontend.sendCreateAccount(port, pubKey);
 
         while (true){
-          Scanner sc= new Scanner(System.in);
+          Scanner sc = new Scanner(System.in);
           System.out.println("Choose the operation:\n1. Check Balance\n2. Transfer Money");  
           String option = sc.nextLine();
           if(option.equals("1")){
@@ -44,7 +46,7 @@ public class User extends Thread {
             if (option3.equals("0")){
               frontend.sendCheck(port, pubKey, true);
             }
-            else{
+            else if (option3.equals("1")){
               frontend.sendCheck(port, pubKey, false);
             }
           }
@@ -79,5 +81,9 @@ public class User extends Thread {
 
     public static int getid(){
       return id;
+    }
+
+    public static PublicKey getPubKey(){
+      return pubKey;
     }
 }

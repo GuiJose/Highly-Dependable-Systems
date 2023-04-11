@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
@@ -71,7 +72,7 @@ public class UserFrontend {
     }
 
     public void listening() throws Exception{
-        byte[] buffer = new byte[4096];
+        byte[] buffer = new byte[25000];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         
         while(true){
@@ -138,13 +139,43 @@ public class UserFrontend {
                 if (DigitalSignature.VerifySignature(msg, signature, serverKey)){
                     sendAck(M.getServerId(), M.getMessageId());
                     if (!receivedMessage(M.getServerId(), M.getMessageId())){
-                        if (M.getIsStrong()){receivedResponseCheck(M);}
-                        else{System.out.println("RECEBI UM CHECK FRACO");}
+                        if (M.getIsStrong()){
+                            receivedResponseStrongCheck(M);
+                        }
+                        else{
+                            receivedResponseWeakCheck(M);
+                        }
                     }
                 }
             }
             packet.setLength(buffer.length); 
         }
+    }
+
+    public synchronized void receivedResponseWeakCheck(RESPONSE_CHECK M) throws Exception{
+        if (M.getIsFirstValue()){
+            System.out.println("Your balance is 100 with timestamp 0.");
+        }
+
+        if(M.getBlock().getSignatures().size() >= quorum){
+            int count = 0;
+            for (Map.Entry<Integer, byte[]> entry : M.getBlock().getSignatures().entrySet()) {
+                Integer serverId = entry.getKey();
+                byte[] signature = entry.getValue();
+                String keyPath = "../Common/resources/S" + serverId + "public.key";
+                PublicKey key = RSAKeyGenerator.readPublic(keyPath);
+                byte[] bytes = ByteArraysOperations.SerializeObject(M.getBlock().getAccounts()); 
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(bytes);
+                if (DigitalSignature.VerifySignature(hash, signature, key)){
+                    count++;
+                }
+            }
+            if (count>=quorum){
+                System.out.println("Your balance is " + M.getBlock().getAccounts().get(User.getPubKey())[0] + " with timestamp " + M.getBlock().getAccounts().get(User.getPubKey())[1] + ".");
+            }
+        }
+        System.out.println("Received a response to my weak read from a bizantine server!");
     }
 
     public synchronized void receivedResponseCreate(RESPONSE_CREATE M){
@@ -174,7 +205,7 @@ public class UserFrontend {
             return true;
     }
 
-    public synchronized void receivedResponseCheck(RESPONSE_CHECK M){
+    public synchronized void receivedResponseStrongCheck(RESPONSE_CHECK M){
         if (M.getTimestamp() >= this.readTimeStamp){
             for (List<Integer> list : checks.get(M.getCheckId())){
                 if (list.get(0) == M.getServerId()){

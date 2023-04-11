@@ -27,7 +27,8 @@ public class Server extends Thread{
     private static ConcurrentHashMap<PublicKey, int[]> accounts = new ConcurrentHashMap<>();
     private static List<List<Object>> keys = new ArrayList<>(); 
     // Object = [id, key, iv, address, port]
-    private static int currentLeader = 0; 
+    private static int currentLeader = 0;
+    private static int quorum;  
     private static boolean isBizantine = false;
     public void run(){ 
         try {
@@ -43,9 +44,14 @@ public class Server extends Thread{
         readConfiguration();
         RSAKeyGenerator.write(id,"s");
         numServers = addresses.size();
-
+        int byzantineServersSuported = (int) Math.floor((numServers-1)/3);
+        quorum = 2 * byzantineServersSuported + 1; 
         if (args[1].equals("1")){
             isBizantine = true;
+            System.out.println("I'm a bizantine server.");
+        }
+        else{
+            System.out.println("I'm a legitimate server");
         }
         
         ibtf = new ServerIBFT(blockchain, numServers);
@@ -99,6 +105,10 @@ public class Server extends Thread{
         return perfectLink;
     }
 
+    public static int getQuorum(){
+        return quorum;
+    }
+
     public static int getCurrentLeader(){
         return currentLeader;
     }
@@ -131,16 +141,30 @@ public class Server extends Thread{
     public static void checkBalance(CHECK_MESSAGE M) throws Exception{
         if(accounts.containsKey(M.getKey())){
             Random random = new Random();
-            if (isBizantine){
-                System.out.println("Sent check response tampered because i'm bizantine.");
-                RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), random.nextInt(200), random.nextInt(200), M.getMessageId(), M.isStrong());
-                perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+            if (M.isStrong()){
+                if (isBizantine){
+                    System.out.println("Sent check response tampered because i'm bizantine.");
+                    RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), random.nextInt(200), random.nextInt(200), M.getMessageId(), M.isStrong());
+                    perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                }
+                else{
+                    int ammount = accounts.get(M.getKey())[0];
+                    int writeTimeStamp = accounts.get(M.getKey())[1];
+                    RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), ammount, writeTimeStamp, M.getMessageId(), M.isStrong());
+                    perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                }
             }
             else{
-                int ammount = accounts.get(M.getKey())[0];
-                int writeTimeStamp = accounts.get(M.getKey())[1];
-                RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), ammount, writeTimeStamp, M.getMessageId(), M.isStrong());
+                for (int i = blockchain.getBlocks().size() - 1; i >= 0; i--) {
+                    if (blockchain.getBlocks().get(i).getIsSpecial() && blockchain.getBlocks().get(i).getSignatures().size() >= quorum){
+                        RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), blockchain.getBlocks().get(i), M.isStrong(), false);
+                        perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                        return;
+                    }
+                }
+                RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), new Block(id, true), M.isStrong(), true);
                 perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                return;
             }
         }
         else{

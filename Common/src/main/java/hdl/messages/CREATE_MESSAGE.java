@@ -8,7 +8,6 @@ public class CREATE_MESSAGE implements Serializable{
     private int message_id;
     private String ip;
     private int port;
-    private byte[] signature = null;
     private PublicKey publicKey;
 
     public CREATE_MESSAGE(int user_id, int message_id, String ip, int port, PublicKey publicKey) {
@@ -29,9 +28,6 @@ public class CREATE_MESSAGE implements Serializable{
     }
     public int getPort(){
         return this.port;
-    }
-    public byte[] getSignature(){
-        return this.signature;
     }
     public PublicKey getKey(){
         return this.publicKey;

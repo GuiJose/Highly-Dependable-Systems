@@ -1,8 +1,9 @@
 hdl/Blockchain.class
 hdl/ServerIBFT.class
 hdl/PerfectLink.class
-hdl/Block.class
+hdl/messages/SignatureResponse.class
 hdl/PerfectLink$1.class
 hdl/Server.class
+hdl/messages/SignatureRequest.class
 hdl/messages/ibtfMessage.class
 hdl/ServerIBFT$1.class

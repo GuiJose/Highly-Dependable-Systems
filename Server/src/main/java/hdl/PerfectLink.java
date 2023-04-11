@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
@@ -18,6 +19,8 @@ import hdl.messages.ACK_MESSAGE;
 import hdl.messages.CHECK_MESSAGE;
 import hdl.messages.CREATE_MESSAGE;
 import hdl.messages.RESPONSE;
+import hdl.messages.SignatureRequest;
+import hdl.messages.SignatureResponse;
 import hdl.messages.TRANSFER_MESSAGE;
 import hdl.messages.ibtfMessage;
 
@@ -186,6 +189,27 @@ public class PerfectLink extends Thread{
                     receivedACKFromUser(M.getMessageACKED());
                 }
             }
+            else if (obj instanceof SignatureRequest){
+                SignatureRequest M = (SignatureRequest) obj;
+                String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
+                PublicKey key = RSAKeyGenerator.readPublic(keyPath);
+                if (DigitalSignature.VerifySignature(msg, signature, key)){
+                    sendACK(M.getServerId(), M.getMessageId());
+                    byte[] sign = Server.getBlockchain().receivedSignatureRequest(M);
+                    if (!(sign==null)){
+                        sendSignatureResponse(sign, M.getBlockNumber(), M.getServerId());
+                    }
+                }
+            }
+            else if (obj instanceof SignatureResponse){
+                SignatureResponse M = (SignatureResponse) obj;
+                String keyPath = "../Common/resources/S" + M.getServerId() + "public.key";
+                PublicKey key = RSAKeyGenerator.readPublic(keyPath);
+                if (DigitalSignature.VerifySignature(msg, signature, key)){
+                    sendACK(M.getServerId(), M.getMessageId());
+                    Server.getBlockchain().receivedSignatureResponse(M);
+                }
+            }
         }
     }
 
@@ -267,6 +291,25 @@ public class PerfectLink extends Thread{
                 this.senderSocket.send(packet);
             }
         }
+
+        //Send requests for digital signatures for special blocks.
+        String keyPath = "resources/S" + Server.getid() + "private.key";
+        PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
+        int count = 0;
+        for (Block b: Server.getBlockchain().getBlocks()){
+            count++;
+            if (b.getIsSpecial()){
+                if (b.getSignatures().size() < Server.getQuorum()){
+                    byte[] bytes = ByteArraysOperations.SerializeObject(b.getAccounts()); 
+                    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                    byte[] hash = digest.digest(bytes);
+                    SignatureRequest msg = new SignatureRequest(Server.getid(), this.messageID, hash, count);
+                    byte[] msgBytes = ByteArraysOperations.SerializeObject(msg);
+                    byte[] signedMessage = ByteArraysOperations.signMessage(msgBytes, key);
+                    broadcast(signedMessage);                    
+                }
+            }
+        };
     }
 
     public void sendMessageToUser(String address, int port, Object message) throws Exception{
@@ -289,7 +332,24 @@ public class PerfectLink extends Thread{
         this.senderSocket.send(packet);
     }
 
-    public synchronized void broadcast(byte[] message) throws Exception{ 
+    public void sendSignatureResponse(byte[] signature, int blockNumber, int destServer) throws Exception{
+        String keyPath = "resources/S" + Server.getid() + "private.key";
+        PrivateKey key = RSAKeyGenerator.readPrivate(keyPath);
+        
+        SignatureResponse message = new SignatureResponse(Server.getid(), this.messageID, signature, blockNumber);
+        byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
+        byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
+
+        this.messagesHistory.add(signedMessage);
+        this.messageID++;
+
+        InetAddress ip = InetAddress.getByName((String)Server.getAddresses().get(destServer).get(0));
+        int port = (int)Server.getAddresses().get(destServer).get(1);       
+        DatagramPacket packet = new DatagramPacket(signedMessage, signedMessage.length, ip, port);
+        this.senderSocket.send(packet);
+    }
+
+    public void broadcast(byte[] message) throws Exception{ 
         for (List<Integer> i : messagesNotACKED){
             i.add(this.messageID);
         }

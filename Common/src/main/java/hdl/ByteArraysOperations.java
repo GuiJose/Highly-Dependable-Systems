@@ -14,6 +14,10 @@ public class ByteArraysOperations {
         return baos.toByteArray();
     }
 
+    public static byte[] CreateSignature(byte[] message, PrivateKey privKey) throws Exception{
+        return DigitalSignature.CreateSignature(message, privKey);
+    }
+
     public static byte[] signMessage(byte[] message, PrivateKey privKey) throws Exception{
         byte[] signature = DigitalSignature.CreateSignature(message, privKey);
         byte[] signedMessage = Arrays.copyOf(message, message.length + signature.length);

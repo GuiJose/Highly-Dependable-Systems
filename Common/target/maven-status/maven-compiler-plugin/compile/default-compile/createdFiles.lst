@@ -1,7 +1,7 @@
 hdl/DigitalSignature.class
+hdl/Block.class
 hdl/RSAKeyGenerator.class
 hdl/messages/ACKUSER_MESSAGE.class
-hdl/SymetricKey.class
 hdl/messages/RESPONSE_CHECK.class
 hdl/messages/TRANSFER_MESSAGE.class
 hdl/messages/CHECK_MESSAGE.class

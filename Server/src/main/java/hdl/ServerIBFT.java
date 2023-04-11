@@ -21,7 +21,7 @@ public class ServerIBFT {
     private int quorum;
     private int currentInstance = 0;
     private int writtenInstance = -1;
-    private Block block = new Block(Server.getid()); 
+    private Block block = new Block(Server.getid(), false); 
 
     public ServerIBFT(Blockchain b, int numServers) throws Exception{
         this.blockchain = b;
@@ -129,7 +129,7 @@ public class ServerIBFT {
             }
             else{
                 System.out.println("I've sent a tampered Prepare because i'm bizantine.");
-                Block b2 = new Block(Server.getid());
+                Block b2 = new Block(Server.getid(), false);
                 ibtfMessage message = new ibtfMessage("PREPARE", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b2);
                 byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
                 byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
@@ -157,7 +157,7 @@ public class ServerIBFT {
             }
             else{
                 System.out.println("I've sent a tampered Commit.");
-                Block b2 = new Block(Server.getid());
+                Block b2 = new Block(Server.getid(), false);
                 ibtfMessage message = new ibtfMessage("COMMIT", Server.getid(), Server.getPerfectLink().getMessageId(), lambda, b2);
                 byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
                 byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
@@ -194,6 +194,7 @@ public class ServerIBFT {
                     if ((int) instance.get(5) == 1){
                         blockchain.appendBlock((Block) instance.get(3));
                         processBlock((Block) instance.get(3));
+                        blockchain.appendSpecialBlock();
                         writtenInstance = (int) instance.get(0);
                         nextDecidedOrAborted = true;
                         break;
