@@ -173,7 +173,12 @@ public class UserFrontend {
                 }
             }
             if (count>=quorum){
-                System.out.println("Your balance is " + M.getBlock().getAccounts().get(User.getPubKey())[0] + " with timestamp " + M.getBlock().getAccounts().get(User.getPubKey())[1] + ".");
+                if (M.getBlock().getAccounts().containsKey(User.getPubKey())){
+                    System.out.println("Your balance is " + M.getBlock().getAccounts().get(User.getPubKey())[0] + " with timestamp " + M.getBlock().getAccounts().get(User.getPubKey())[1] + ".");
+                }
+                else{
+                    System.out.println("Your balance is 100 with timestamp 0.");
+                }
             }
         }
         else{

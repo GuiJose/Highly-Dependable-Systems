@@ -155,18 +155,24 @@ public class Server extends Thread{
                 }
             }
             else{
-                for (int i = blockchain.getBlocks().size() - 1; i >= 0; i--) {
-                    if (blockchain.getBlocks().get(i).getIsSpecial() && blockchain.getBlocks().get(i).getSignatures().size() >= quorum){
-                        RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), blockchain.getBlocks().get(i), M.isStrong(), false);
-                        perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
-                        System.out.println("ola");
-                        return;
-                    }
+                if (isBizantine){
+                    RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), new Block(id, true), M.isStrong(), false);
+                    perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                    return;
                 }
-                RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), new Block(id, true), M.isStrong(), true);
-                perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
-                return;
-            }
+                else{
+                    for (int i = blockchain.getBlocks().size() - 1; i >= 0; i--) {
+                        if (blockchain.getBlocks().get(i).getIsSpecial() && blockchain.getBlocks().get(i).getSignatures().size() >= quorum){
+                            RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), blockchain.getBlocks().get(i), M.isStrong(), false);
+                            perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                            return;
+                        }
+                    }
+                    RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), new Block(id, true), M.isStrong(), true);
+                    perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                    return;
+                }
+                }
         }
         else{
             RESPONSE msg = new RESPONSE(Server.getid(), perfectLink.getMessageToUsersId());
