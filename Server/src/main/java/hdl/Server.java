@@ -159,6 +159,7 @@ public class Server extends Thread{
                     if (blockchain.getBlocks().get(i).getIsSpecial() && blockchain.getBlocks().get(i).getSignatures().size() >= quorum){
                         RESPONSE_CHECK msg = new RESPONSE_CHECK(Server.getid(), perfectLink.getMessageToUsersId(), blockchain.getBlocks().get(i), M.isStrong(), false);
                         perfectLink.sendMessageToUser(M.getIp(), M.getPort(), msg);
+                        System.out.println("ola");
                         return;
                     }
                 }

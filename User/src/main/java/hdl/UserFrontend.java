@@ -155,6 +155,7 @@ public class UserFrontend {
     public synchronized void receivedResponseWeakCheck(RESPONSE_CHECK M) throws Exception{
         if (M.getIsFirstValue()){
             System.out.println("Your balance is 100 with timestamp 0.");
+            return;
         }
 
         if(M.getBlock().getSignatures().size() >= quorum){
@@ -175,7 +176,9 @@ public class UserFrontend {
                 System.out.println("Your balance is " + M.getBlock().getAccounts().get(User.getPubKey())[0] + " with timestamp " + M.getBlock().getAccounts().get(User.getPubKey())[1] + ".");
             }
         }
-        System.out.println("Received a response to my weak read from a bizantine server!");
+        else{
+            System.out.println("Received a response to my weak read from a bizantine server!");
+        }
     }
 
     public synchronized void receivedResponseCreate(RESPONSE_CREATE M){
