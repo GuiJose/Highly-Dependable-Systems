@@ -40,8 +40,8 @@ public class UserFrontend {
     private List<List<Integer>> messagesNotACKED = new ArrayList<>();
     private List<byte[]> messagesHistory = new ArrayList<>();
     private int quorum;
-    private int readQuorum;
     private int readTimeStamp = 0;
+    
 
     private List<List<Integer>> messagesReceived = new ArrayList<>();
 
@@ -51,7 +51,6 @@ public class UserFrontend {
         this.receiverSocket = new DatagramSocket(port);
         int byzantineServersSuported = (int) Math.floor((numServers-1)/3);
         this.quorum = 2 * byzantineServersSuported + 1;
-        this.readQuorum = byzantineServersSuported + 1;
 
         for (int i = 0; i < numServers; i++) {
             List<Integer> l = new ArrayList<>();
@@ -263,7 +262,7 @@ public class UserFrontend {
             highestFrequency = frequency;
           }
         }
-        if (highestFrequency >= this.readQuorum){
+        if (highestFrequency >= this.quorum){
             return mostCommonTimestamp;
         }
         else{
@@ -294,7 +293,7 @@ public class UserFrontend {
             highestFrequency = frequency;
           }
         }
-        if (highestFrequency >= this.readQuorum){
+        if (highestFrequency >= this.quorum){
             return mostCommonBalance;
         }
         else{
