@@ -23,6 +23,7 @@ public class User extends Thread {
         }
     }
     public static void main(String args[]) throws Exception{
+        System.out.println("I'm user " + args[0]);
         id = Integer.parseInt(args[0]);
         port = Integer.parseInt(args[1]);
         getServersAdd();

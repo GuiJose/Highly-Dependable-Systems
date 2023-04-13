@@ -10,6 +10,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +41,8 @@ public class PerfectLink extends Thread{
     private List<byte[]> messagesHistory;
     private int messageID = 0;
 
+    private int counter = 0;
+
     public PerfectLink(int port, ServerIBFT ibtf, int numServers) throws Exception{
         this.receiverSocket = new DatagramSocket(port);
         this.senderSocket = new DatagramSocket();
@@ -66,7 +69,7 @@ public class PerfectLink extends Thread{
                 }
             }
         };
-        timer.schedule(task, 0, 3000);
+        timer.schedule(task, 0, 2000);
     }
 
     public synchronized void listening() throws Exception{    
@@ -309,7 +312,19 @@ public class PerfectLink extends Thread{
                     broadcast(signedMessage);                    
                 }
             }
-        };
+        }
+
+        //Send tampered Prepreprares on the behalf of the leader.
+        this.counter++;
+        if (Server.getIsBizantine() && counter%20==0){
+            System.out.println("I've sent a Preprepare pretending that i'm the server 0 who is the leader right now.");    
+            Random random = new Random();
+            ibtfMessage message = new ibtfMessage("PREPREPARE", 0, Server.getPerfectLink().getMessageId(), random.nextInt(20), new Block(0, false));
+            byte[] messageBytes = ByteArraysOperations.SerializeObject(message);
+            byte[] signedMessage = ByteArraysOperations.signMessage(messageBytes, key);
+            broadcast(signedMessage);
+            counter = 0;
+        }
     }
 
     public void sendMessageToUser(String address, int port, Object message) throws Exception{
