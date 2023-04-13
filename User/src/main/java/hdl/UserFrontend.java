@@ -41,6 +41,7 @@ public class UserFrontend {
     private List<byte[]> messagesHistory = new ArrayList<>();
     private int quorum;
     private int readTimeStamp = 0;
+    private int numServers;
     
 
     private List<List<Integer>> messagesReceived = new ArrayList<>();
@@ -56,6 +57,7 @@ public class UserFrontend {
             List<Integer> l = new ArrayList<>();
             messagesReceived.add(l);
         }
+        this.numServers = numServers; 
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -215,7 +217,7 @@ public class UserFrontend {
     public synchronized void receivedResponseStrongCheck(RESPONSE_CHECK M){
         if (M.getTimestamp() >= this.readTimeStamp){
             for (List<Integer> list : checks.get(M.getCheckId())){
-                if (list.get(0) == M.getServerId()){
+                if (list.get(0) == M.getServerId() && list.size() != 1){
                     return;
                 }
             }
@@ -224,12 +226,13 @@ public class UserFrontend {
             newList.add(M.getTimestamp());
             newList.add(M.getBalance());
             checks.get(M.getCheckId()).add(newList);
-
-            if (checks.get(M.getCheckId()).size() >= quorum && checks.get(M.getCheckId()).get(0).get(0) == 0){
+            if ((checks.get(M.getCheckId()).size()-1) >= quorum && checks.get(M.getCheckId()).get(0).get(0) == 0){
                 int mostCommonTimestamp = mostCommonTimestamp(M);
                 int mostCommonBalance = mostCommonBalance(M, mostCommonTimestamp);
-                
-                if (mostCommonTimestamp == -1 || mostCommonBalance == -1){
+                if (mostCommonTimestamp == -1){
+                    if (checks.get(M.getCheckId()).size()-1 == numServers){
+                        System.out.println("It was not possible to obtain a strong read. Try again later.");
+                    }
                     return;
                 }
                 
@@ -243,7 +246,6 @@ public class UserFrontend {
 
     public synchronized int mostCommonTimestamp(RESPONSE_CHECK M){
         Map<Integer, Integer> frequencyMap = new HashMap<>();
-
         for (List<Integer> innerList : checks.get(M.getCheckId())) {
             if (innerList.size() == 3 ){
                 frequencyMap.put(innerList.get(1), frequencyMap.getOrDefault(innerList.get(1), 0) + 1);
@@ -293,12 +295,7 @@ public class UserFrontend {
             highestFrequency = frequency;
           }
         }
-        if (highestFrequency >= this.quorum){
-            return mostCommonBalance;
-        }
-        else{
-            return -1;
-        }
+        return mostCommonBalance;
     }
 
     public synchronized void sendAck(int serverId, int messageACKED) throws Exception{

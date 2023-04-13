@@ -49,6 +49,6 @@ After this, make 2 valid operations. In user 0, make a tranfer to user 1 and sen
 
 You can also test the reads in the user 1.
 
-After this make more 9 valid operations. In user 0, make a tranfer to user 1 and send him one token, do this 9 times. Make a strong read. It should return 76, because the servers processed all the operations, the user has 94 tokens because it transfered 12 tokens to user 1 and paid 1 token as fee to the servers' leader per operation. Make a weak read, it should return 76, because after the last tranfer operation, and after the block where this operation was inserted in, was appended to the blockchain, it was also appended a special block to the blockchain.
+After this make more 9 valid operations. In user 0, make a tranfer to user 1 and send him one token, do this 9 times. Make a strong read. It should return 76, because the servers processed all the operations, the user has 76 tokens because it transfered 12 tokens to user 1 and paid 1 token as fee to the servers' leader per operation. Make a weak read, it should return 76, because after the last tranfer operation, and after the block where this operation was inserted in, was appended to the blockchain, it was also appended a special block to the blockchain.
 
 Do some reads in the user 1 and check if the values are coherent.
